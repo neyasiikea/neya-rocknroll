@@ -1,38 +1,133 @@
 // src/game/renderer/hud.ts
-import { getScore, getCombo } from "../score";
+import { getScore, getCombo, getStats } from "../score";
+import { LANE_COLORS } from "./highway";
+import type { Judgment } from "../../types";
 
+const JUDGMENT_COLORS: Record<Judgment, string> = {
+  perfect: "#00FF88",
+  good: "#FFCC00",
+  miss: "#FF3366",
+};
+
+const JUDGMENT_TEXT: Record<Judgment, string> = {
+  perfect: "PERFECT",
+  good: "GOOD",
+  miss: "MISS",
+};
+
+interface Popup {
+  judgment: Judgment;
+  lane: number;
+  x: number;
+  y: number;
+  life: number;
+  maxLife: number;
+}
+
+const popups: Popup[] = [];
 let lastCombo = 0;
 let comboTimer = 0;
+let lastHitType: Judgment | null = null;
+let hitFlashTimer = 0;
+
+export function pushJudgment(judgment: Judgment, lane: number) {
+  lastHitType = judgment;
+  hitFlashTimer = 0.15;
+  // Popup at lane center
+  popups.push({
+    judgment,
+    lane,
+    x: 0, // calculated in render
+    y: 500, // near hit line
+    life: 0.7,
+    maxLife: 0.7,
+  });
+}
+
+export function updateJudgmentPopups(dt: number) {
+  for (const p of popups) {
+    p.life -= dt;
+    p.y -= 60 * dt; // float upward
+  }
+  // Remove dead popups
+  for (let i = popups.length - 1; i >= 0; i--) {
+    if (popups[i].life <= 0) popups.splice(i, 1);
+  }
+  if (hitFlashTimer > 0) hitFlashTimer -= dt;
+}
+
+export function renderJudgmentPopups(ctx: CanvasRenderingContext2D, canvasWidth: number, _canvasHeight: number) {
+  const { lanes } = { lanes: 5 }; // default max
+  const laneWidth = 80;
+  const totalWidth = lanes * laneWidth;
+  const startX = (canvasWidth - totalWidth) / 2;
+  for (const p of popups) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    const x = p.lane >= 0 ? startX + p.lane * laneWidth + laneWidth / 2 : canvasWidth / 2;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = JUDGMENT_COLORS[p.judgment];
+    ctx.font = `bold ${18 + (1 - alpha) * 8}px monospace`;
+    ctx.textAlign = "center";
+    ctx.shadowColor = JUDGMENT_COLORS[p.judgment];
+    ctx.shadowBlur = 12 * alpha;
+    ctx.fillText(JUDGMENT_TEXT[p.judgment], x, p.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
 
 export function renderHUD(ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number) {
   const score = getScore();
   const combo = getCombo();
+  const stats = getStats();
 
-  // Combo change animation timing
-  if (combo !== lastCombo) {
-    comboTimer = 0.15;
-    lastCombo = combo;
-  }
+  // Combo change animation
+  if (combo !== lastCombo) { comboTimer = 0.15; lastCombo = combo; }
   comboTimer = Math.max(0, comboTimer - 1 / 60);
+
+  // Hit flash — brief glow when hitting a note
+  if (hitFlashTimer > 0 && lastHitType) {
+    ctx.fillStyle = `${JUDGMENT_COLORS[lastHitType]}${Math.round(hitFlashTimer * 40).toString(16).padStart(2, "0")}`;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  }
 
   // Score — top center
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 28px monospace";
   ctx.textAlign = "center";
-  ctx.fillText(`${Math.floor(score)}`, canvasWidth / 2, 50);
+  ctx.fillText(`${Math.floor(score).toLocaleString()}`, canvasWidth / 2, 50);
+
+  // Stats — top left (perfect/good/miss counters)
+  ctx.font = "14px monospace";
+  ctx.textAlign = "left";
+  ctx.fillStyle = JUDGMENT_COLORS.perfect;
+  ctx.fillText(`PERFECT ${stats.perfects}`, 14, 30);
+  ctx.fillStyle = JUDGMENT_COLORS.good;
+  ctx.fillText(`GOOD ${stats.goods}`, 14, 48);
+  ctx.fillStyle = JUDGMENT_COLORS.miss;
+  ctx.fillText(`MISS ${stats.misses}`, 14, 66);
+
+  // Accuracy — top right
+  const acc = stats.perfects + stats.goods + stats.misses > 0
+    ? ((stats.perfects + stats.goods * 0.5) / (stats.perfects + stats.goods + stats.misses) * 100).toFixed(1)
+    : "0.0";
+  ctx.fillStyle = "#ffffff88";
+  ctx.textAlign = "right";
+  ctx.fillText(`${acc}%`, canvasWidth - 14, 30);
 
   // Combo — center (large, pulsing)
-  if (combo >= 10) {
+  if (combo >= 5) {
     const scale = 1 + comboTimer * 0.3;
     ctx.save();
-    ctx.translate(canvasWidth / 2, canvasHeight * 0.75);
+    ctx.translate(canvasWidth / 2, canvasHeight * 0.78);
     ctx.scale(scale, scale);
-
-    const alpha = 0.6 + comboTimer * 0.4;
+    const alpha = 0.5 + comboTimer * 0.5;
     ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-    ctx.font = "bold 48px monospace";
+    ctx.font = "bold 42px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(`${combo} combo`, 0, 0);
+    ctx.fillText(`${combo}`, 0, 0);
+    ctx.font = "12px monospace";
+    ctx.fillText("COMBO", 0, 18);
     ctx.restore();
   }
 }

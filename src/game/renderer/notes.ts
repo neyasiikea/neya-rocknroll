@@ -27,7 +27,8 @@ function noteTimeToY(noteTime: number, currentTime: number): number {
 export function renderNotes(
   ctx: CanvasRenderingContext2D,
   notes: RuntimeNote[],
-  currentTime: number
+  currentTime: number,
+  activeHoldKeys?: Set<string>
 ) {
   const { lanes, canvasWidth, canvasHeight, laneWidth, noteHeight } = config;
   const totalWidth = lanes * laneWidth;
@@ -45,12 +46,12 @@ export function renderNotes(
     const laneColor = LANE_COLORS[note.lane] ?? "#ffffff";
 
     if (note.holdDuration > 0) {
-      // Hold note: stretched rectangle
       const holdLength = note.holdDuration * config.noteSpeed;
       const holdTop = y - holdLength;
-      drawHoldNote(ctx, x, holdTop, laneWidth, holdLength + noteHeight, laneColor);
+      const key = `${note.time.toFixed(4)}_${note.lane}`;
+      const isHeld = activeHoldKeys?.has(key) ?? false;
+      drawHoldNote(ctx, x, holdTop, laneWidth, holdLength + noteHeight, laneColor, isHeld);
     } else {
-      // Tap note: rounded rectangle
       drawTapNote(ctx, x, y, laneWidth, noteHeight, laneColor);
     }
   }
@@ -93,27 +94,51 @@ function drawTapNote(
 
 function drawHoldNote(
   ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, color: string
+  x: number, y: number, w: number, h: number, color: string,
+  isHeld = false
 ) {
   const padding = 4;
   const nx = x + padding;
   const nw = w - padding * 2;
 
-  // Hold body
-  ctx.fillStyle = `${color}44`;
+  if (isHeld) {
+    // Active hold — bright fill pulsing, full glow
+    ctx.fillStyle = `${color}88`;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+  } else {
+    // Inactive hold — dim body
+    ctx.fillStyle = `${color}33`;
+    ctx.shadowBlur = 0;
+  }
   ctx.fillRect(nx, y, nw, h);
 
   // Hold borders
-  ctx.strokeStyle = `${color}88`;
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = isHeld ? `${color}` : `${color}66`;
+  ctx.lineWidth = isHeld ? 2 : 1;
   ctx.strokeRect(nx, y, nw, h);
+  ctx.shadowBlur = 0;
 
-  // Hold head (bottom)
+  // Hold head (bottom) — always bright
   ctx.fillStyle = color;
   ctx.shadowColor = color;
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = isHeld ? 20 : 10;
   ctx.fillRect(nx, y + h - 8, nw, 8);
   ctx.shadowBlur = 0;
+
+  // Side glow lines for active holds
+  if (isHeld) {
+    ctx.strokeStyle = `${color}44`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(nx, y);
+    ctx.lineTo(nx, y + h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(nx + nw, y);
+    ctx.lineTo(nx + nw, y + h);
+    ctx.stroke();
+  }
 }
 
 export { noteTimeToY };

@@ -80,6 +80,10 @@ export function autoMissPastNotes(currentTime: number, windowMs: number, skipInd
   return missedCount;
 }
 
+export function getRuntimeNotes() {
+  return runtimeNotes;
+}
+
 export function getTotalNotes(): number {
   return runtimeNotes.length;
 }

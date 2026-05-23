@@ -75,6 +75,10 @@ export function getAccuracy(): number {
   return (perfects + goods * 0.5) / total;
 }
 
+export function getStats() {
+  return { score, combo, perfects, goods, misses, maxCombo };
+}
+
 export function getGrade(): GameResult["grade"] {
   const acc = getAccuracy();
   if (acc >= 0.95) return "S";
