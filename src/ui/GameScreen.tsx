@@ -4,7 +4,7 @@ import { useGameState } from "./GameContext";
 import { startEngine, stopEngine } from "../game/engine";
 import { loadAudio, playAudio, stopAudio, getPlaybackTime, getBassIntensity, getIsPlaying } from "../game/audio";
 import { pollInput } from "../game/input";
-import { loadChart, getTimingWindow, getJudgableNotes, markNoteJudged, autoMissPastNotes, getTotalNotes, getHitCount, getMissCount } from "../game/chart";
+import { loadChart, getTimingWindow, getJudgableNotes, markNoteJudged, findNoteIndex, autoMissPastNotes, getTotalNotes, getHitCount, getMissCount } from "../game/chart";
 import { judgeHit } from "../game/judge";
 import { resetScore, addJudgment, buildResult } from "../game/score";
 import { initHighway, renderHighway } from "../game/renderer/highway";
@@ -74,26 +74,21 @@ export function GameScreen() {
           }
 
           if (bestMatch) {
-            const result = judgeHit(bestMatch.time, currentTime, window);
-            if (result) {
-              // Mark the note as judged — find it by iterating over chart notes
-              const chartNotes = selectedChart.notes;
-              for (let i = 0; i < chartNotes.length; i++) {
-                const cn = chartNotes[i];
-                if (cn.time === bestMatch.time && cn.lane === bestMatch.lane) {
-                  markNoteJudged(i);
-                  break;
-                }
+            const idx = findNoteIndex(bestMatch.time, bestMatch.lane, window.good / 1000);
+            if (idx >= 0) {
+              const result = judgeHit(bestMatch.time, currentTime, window);
+              if (result) {
+                markNoteJudged(idx);
+                addJudgment(result.judgment);
+                const totalWidth = laneCount * LANE_WIDTH;
+                const startX = (CANVAS_W - totalWidth) / 2;
+                spawnHitEffect(
+                  startX + lane * LANE_WIDTH + LANE_WIDTH / 2,
+                  HIT_LINE_Y,
+                  lane,
+                  result.judgment
+                );
               }
-              addJudgment(result.judgment);
-              const totalWidth = laneCount * LANE_WIDTH;
-              const startX = (CANVAS_W - totalWidth) / 2;
-              spawnHitEffect(
-                startX + lane * LANE_WIDTH + LANE_WIDTH / 2,
-                HIT_LINE_Y,
-                lane,
-                result.judgment
-              );
             }
           }
         }
@@ -127,22 +122,14 @@ export function GameScreen() {
 
       renderHighway(ctx, bass);
 
-      // Build visible notes list
+      // Build visible notes list from runtime notes (reflects hit/miss state)
       const lookAhead = (CANVAS_H / NOTE_SPEED) + 1;
-      const visibleNotes = selectedChart!.notes
-        .map(n => ({
-          time: n.time,
-          lane: n.lane,
-          holdDuration: n.hold ?? 0,
-          holdEndTime: n.time + (n.hold ?? 0),
-          hit: false,
-          missed: false,
-        }))
-        .filter(n => {
-          if (n.time < currentTime - 0.2) return false;
-          if (n.time > currentTime + lookAhead) return false;
-          return true;
-        });
+      const allRuntimeNotes = getJudgableNotes(currentTime, lookAhead * 1000);
+      const visibleNotes = allRuntimeNotes.filter(n => {
+        if (n.time < currentTime - 0.2) return false;
+        if (n.time > currentTime + lookAhead) return false;
+        return true;
+      });
 
       renderNotes(ctx, visibleNotes, currentTime);
       renderParticles(ctx);

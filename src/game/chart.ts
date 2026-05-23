@@ -91,6 +91,15 @@ export function getMissCount(): number {
   return runtimeNotes.filter(n => n.missed).length;
 }
 
+/** 按时间和轨道查找运行时音符索引 */
+export function findNoteIndex(time: number, lane: number, tolerance: number): number {
+  return runtimeNotes.findIndex(n =>
+    n.lane === lane &&
+    !n.hit && !n.missed &&
+    Math.abs(n.time - time) <= tolerance
+  );
+}
+
 export function getCurrentChart() {
   return currentChart;
 }
