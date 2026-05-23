@@ -42,18 +42,29 @@ const keysDown = new Set<string>();
 const keysJustDown = new Set<string>();
 const keysJustUp = new Set<string>();
 
+/** Keys that the game consumes (we preventDefault only these) */
+const GAME_KEYS = new Set([
+  "d", "f", "j", "k", "l",
+  "Enter", "Escape", " ",
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+]);
+
 export function initKeyboardListener() {
   window.addEventListener("keydown", (e) => {
-    if (!keysDown.has(e.key)) {
-      keysJustDown.add(e.key);
+    if (GAME_KEYS.has(e.key)) {
+      if (!keysDown.has(e.key)) {
+        keysJustDown.add(e.key);
+      }
+      keysDown.add(e.key);
+      e.preventDefault();
     }
-    keysDown.add(e.key);
-    e.preventDefault();
   });
   window.addEventListener("keyup", (e) => {
-    keysDown.delete(e.key);
-    keysJustUp.add(e.key);
-    e.preventDefault();
+    if (GAME_KEYS.has(e.key)) {
+      keysDown.delete(e.key);
+      keysJustUp.add(e.key);
+      e.preventDefault();
+    }
   });
 }
 

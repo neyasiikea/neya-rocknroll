@@ -3,7 +3,6 @@ import { GameProvider, useGameState } from "./ui/GameContext";
 import { MainMenu } from "./ui/MainMenu";
 import { SongSelect } from "./ui/SongSelect";
 import { GameScreen } from "./ui/GameScreen";
-import { PauseOverlay } from "./ui/PauseOverlay";
 import { ResultScreen } from "./ui/ResultScreen";
 import { getAllSongs } from "./charts/registry";
 import { pollInput, initKeyboardListener } from "./game/input";
@@ -15,25 +14,14 @@ function getLastResult(): GameResult | null {
 }
 
 function GameRouter() {
-  const { phase, navigateTo, resumeGame, pauseGame } = useGameState();
+  const { phase, navigateTo } = useGameState();
 
   // Init keyboard listener for fallback input
   useEffect(() => {
     initKeyboardListener();
   }, []);
 
-  // Handle tab visibility change — pause when tab loses focus
-  useEffect(() => {
-    function onVisibilityChange() {
-      if (document.hidden && phase === "playing") {
-        pauseGame();
-      }
-    }
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [phase, pauseGame]);
-
-  // Poll gamepad/keyboard for menu navigation
+  // Poll gamepad/keyboard for menu-level navigation
   useEffect(() => {
     let animId: number;
     function poll() {
@@ -45,17 +33,13 @@ function GameRouter() {
           if (songs.length > 0) {
             navigateTo("songSelect");
           }
-        } else if (phase === "paused") {
-          resumeGame();
         } else if (phase === "result") {
           navigateTo("menu");
         }
       }
 
       if (input.backJustPressed) {
-        if (phase === "paused") {
-          navigateTo("menu");
-        } else if (phase === "songSelect") {
+        if (phase === "songSelect") {
           navigateTo("menu");
         }
       }
@@ -64,7 +48,7 @@ function GameRouter() {
     }
     animId = requestAnimationFrame(poll);
     return () => cancelAnimationFrame(animId);
-  }, [phase, navigateTo, resumeGame]);
+  }, [phase, navigateTo]);
 
   switch (phase) {
     case "menu":
@@ -74,13 +58,6 @@ function GameRouter() {
     case "countdown":
     case "playing":
       return <GameScreen />;
-    case "paused":
-      return (
-        <>
-          <GameScreen />
-          <PauseOverlay />
-        </>
-      );
     case "result":
       return <ResultScreen result={getLastResult()} />;
     default:
