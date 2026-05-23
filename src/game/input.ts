@@ -80,7 +80,23 @@ function isKeyDown(key: string): boolean {
 /** Keyboard lane keys: D, F, J, K, L (5 lanes, common rhythm game layout) */
 const KB_LANES = ["d", "f", "j", "k", "l"];
 
+// Cache poll result per ~16ms frame so multiple callers get the same state
+let cachedState: InputState | null = null;
+let cacheFrameId = 0;
+
 export function pollInput(): InputState {
+  const frameId = Math.floor(performance.now() / 16);
+  if (cachedState && frameId === cacheFrameId) {
+    // Return shallow copies of arrays so callers don't mutate cache
+    return {
+      ...cachedState,
+      lanePressed: [...cachedState.lanePressed],
+      laneJustPressed: [...cachedState.laneJustPressed],
+      laneJustReleased: [...cachedState.laneJustReleased],
+    };
+  }
+  cacheFrameId = frameId;
+
   const mapping = getMapping();
   const gamepad = navigator.getGamepads()[0];
   const state: InputState = {
@@ -111,11 +127,13 @@ export function pollInput(): InputState {
   state.downJustPressed = consumeKeyJustDown("ArrowDown");
   state.leftJustPressed = consumeKeyJustDown("ArrowLeft");
   state.rightJustPressed = consumeKeyJustDown("ArrowRight");
-  // Clear stale just-up events
   keysJustDown.clear();
   keysJustUp.clear();
 
-  if (!gamepad) return state;
+  if (!gamepad) {
+    cachedState = state;
+    return state;
+  }
 
   for (let i = 0; i < laneCount; i++) {
     const btnIdx = mapping.lanes[i];
@@ -140,12 +158,12 @@ export function pollInput(): InputState {
   state.confirmJustPressed = checkRising(mapping.confirm) || state.confirmJustPressed;
   state.backJustPressed = checkRising(mapping.back) || state.backJustPressed;
   state.startJustPressed = checkRising(mapping.start) || state.startJustPressed;
-  // D-pad (buttons 12-15): up, down, left, right
   state.upJustPressed = checkRising(12) || state.upJustPressed;
   state.downJustPressed = checkRising(13) || state.downJustPressed;
   state.leftJustPressed = checkRising(14) || state.leftJustPressed;
   state.rightJustPressed = checkRising(15) || state.rightJustPressed;
 
+  cachedState = state;
   return state;
 }
 

@@ -32,6 +32,7 @@ export function GameScreen() {
     let audioBuffer: AudioBuffer | null = null;
     let started = false;
     let finished = false;
+    let fallbackStartTime = 0;
 
     // Init subsystems
     resetScore();
@@ -41,25 +42,44 @@ export function GameScreen() {
     initNotes({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed: NOTE_SPEED, noteHeight: NOTE_HEIGHT });
 
     // Preload audio
-    loadAudio(selectedSong.audioPath).then(buf => { audioBuffer = buf; });
+    let audioFailed = false;
+    loadAudio(selectedSong.audioPath)
+      .then(buf => { audioBuffer = buf; })
+      .catch(err => {
+        console.error("Audio load failed:", selectedSong.audioPath, err);
+        audioFailed = true;
+        // Start without audio so the game is at least visually testable
+        audioBuffer = null;
+      });
 
     function update(_dt: number) {
       const input = pollInput();
       const currentTime = getPlaybackTime();
       const window = getTimingWindow();
 
-      // Auto-start when audio loaded
-      if (!getIsPlaying() && audioBuffer) {
-        playAudio(audioBuffer);
-        started = true;
+      // Auto-start when audio loaded (or failed)
+      if (!getIsPlaying() && !started) {
+        if (audioBuffer) {
+          playAudio(audioBuffer);
+          started = true;
+        } else if (audioFailed) {
+          // No audio — use fallback timer for visual testing
+          started = true;
+          fallbackStartTime = performance.now() / 1000;
+        }
       }
 
       if (!started) return;
 
-      // Handle lane presses
+      // Fallback timer when no audio
+      const gameTime = getIsPlaying()
+        ? currentTime
+        : (performance.now() / 1000 - fallbackStartTime);
+
+      // Handle lane presses (use gameTime instead of currentTime)
       for (let lane = 0; lane < laneCount; lane++) {
         if (input.laneJustPressed[lane]) {
-          const notes = getJudgableNotes(currentTime, window.good);
+          const notes = getJudgableNotes(gameTime, window.good);
           // Find closest unmatched note in this lane
           let bestMatch: typeof notes[0] | null = null;
           let bestDist = Infinity;
@@ -76,7 +96,7 @@ export function GameScreen() {
           if (bestMatch) {
             const idx = findNoteIndex(bestMatch.time, bestMatch.lane, window.good / 1000);
             if (idx >= 0) {
-              const result = judgeHit(bestMatch.time, currentTime, window);
+              const result = judgeHit(bestMatch.time, gameTime, window);
               if (result) {
                 markNoteJudged(idx);
                 addJudgment(result.judgment);
@@ -95,7 +115,7 @@ export function GameScreen() {
       }
 
       // Auto-miss expired notes
-      const missed = autoMissPastNotes(currentTime, window.good);
+      const missed = autoMissPastNotes(gameTime, window.good);
       for (let i = 0; i < missed; i++) {
         addJudgment("miss");
       }
@@ -119,19 +139,36 @@ export function GameScreen() {
       if (!ctx) return;
       const bass = getBassIntensity();
       const currentTime = getPlaybackTime();
+      const gameTime = getIsPlaying()
+        ? currentTime
+        : (fallbackStartTime > 0 ? performance.now() / 1000 - fallbackStartTime : 0);
 
       renderHighway(ctx, bass);
 
+      // Show loading indicator
+      if (!started) {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 24px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("LOADING...", CANVAS_W / 2, CANVAS_H / 2);
+        if (audioFailed) {
+          ctx.fillStyle = "#ff3366";
+          ctx.font = "14px monospace";
+          ctx.fillText("Audio failed — playing without sound", CANVAS_W / 2, CANVAS_H / 2 + 30);
+        }
+        return;
+      }
+
       // Build visible notes list from runtime notes (reflects hit/miss state)
       const lookAhead = (CANVAS_H / NOTE_SPEED) + 1;
-      const allRuntimeNotes = getJudgableNotes(currentTime, lookAhead * 1000);
+      const allRuntimeNotes = getJudgableNotes(gameTime, lookAhead * 1000);
       const visibleNotes = allRuntimeNotes.filter(n => {
-        if (n.time < currentTime - 0.2) return false;
-        if (n.time > currentTime + lookAhead) return false;
+        if (n.time < gameTime - 0.2) return false;
+        if (n.time > gameTime + lookAhead) return false;
         return true;
       });
 
-      renderNotes(ctx, visibleNotes, currentTime);
+      renderNotes(ctx, visibleNotes, gameTime);
       renderParticles(ctx);
       renderHUD(ctx, CANVAS_W, CANVAS_H);
     }
