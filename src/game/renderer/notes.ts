@@ -29,7 +29,7 @@ export function renderNotes(
   notes: RuntimeNote[],
   currentTime: number
 ) {
-  const { lanes, canvasWidth, laneWidth, noteHeight } = config;
+  const { lanes, canvasWidth, canvasHeight, laneWidth, noteHeight } = config;
   const totalWidth = lanes * laneWidth;
   const startX = (canvasWidth - totalWidth) / 2;
 
