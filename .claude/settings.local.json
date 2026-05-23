@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(npx --yes *)",
+      "Bash(mkdir -p _backup)",
+      "Bash(mv src/charts public/songs docs _backup/)",
+      "Bash(rm -rf src public docs)",
+      "Bash(npm install *)",
+      "Bash(ls src/index.css)",
+      "Bash(ls src/assets/react.svg)",
+      "Bash(ls public/vite.svg)",
+      "Bash(timeout 10 npm run dev)",
+      "Bash(ls -d G:/AICode/.git 2>/dev/null && echo \"G:/AICode has .git\" || echo \"G:/AICode no .git\")",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
