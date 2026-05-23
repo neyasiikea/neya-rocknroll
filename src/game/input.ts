@@ -33,6 +33,49 @@ export function saveMapping(mapping: KeyMapping) {
 
 const prevButtons = new Map<number, boolean>();
 
+// Keyboard state tracking
+const keysDown = new Set<string>();
+const keysJustDown = new Set<string>();
+const keysJustUp = new Set<string>();
+
+export function initKeyboardListener() {
+  window.addEventListener("keydown", (e) => {
+    if (!keysDown.has(e.key)) {
+      keysJustDown.add(e.key);
+    }
+    keysDown.add(e.key);
+    e.preventDefault();
+  });
+  window.addEventListener("keyup", (e) => {
+    keysDown.delete(e.key);
+    keysJustUp.add(e.key);
+    e.preventDefault();
+  });
+}
+
+function consumeKeyJustDown(key: string): boolean {
+  if (keysJustDown.has(key)) {
+    keysJustDown.delete(key);
+    return true;
+  }
+  return false;
+}
+
+function consumeKeyJustUp(key: string): boolean {
+  if (keysJustUp.has(key)) {
+    keysJustUp.delete(key);
+    return true;
+  }
+  return false;
+}
+
+function isKeyDown(key: string): boolean {
+  return keysDown.has(key);
+}
+
+/** Keyboard lane keys: D, F, J, K, L (5 lanes, common rhythm game layout) */
+const KB_LANES = ["d", "f", "j", "k", "l"];
+
 export function pollInput(): InputState {
   const mapping = getMapping();
   const gamepad = navigator.getGamepads()[0];
@@ -44,6 +87,21 @@ export function pollInput(): InputState {
     backJustPressed: false,
     startJustPressed: false,
   };
+
+  // Keyboard fallback
+  const laneCount = mapping.lanes.length;
+  for (let i = 0; i < laneCount; i++) {
+    const key = KB_LANES[i] ?? "";
+    state.lanePressed[i] = isKeyDown(key);
+    state.laneJustPressed[i] = consumeKeyJustDown(key);
+    state.laneJustReleased[i] = consumeKeyJustUp(key);
+  }
+  state.confirmJustPressed = consumeKeyJustDown("Enter");
+  state.backJustPressed = consumeKeyJustDown("Escape");
+  state.startJustPressed = consumeKeyJustDown(" ");
+  // Clear stale just-up events
+  keysJustDown.clear();
+  keysJustUp.clear();
 
   if (!gamepad) return state;
 

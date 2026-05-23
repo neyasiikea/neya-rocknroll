@@ -6,7 +6,7 @@ export function MainMenu() {
     <div className="menu-container">
       <h1 className="menu-title">NEON RIFF</h1>
       <p className="menu-subtitle">Press START to play</p>
-      <p className="menu-hint">Connect your gamepad and press Start</p>
+      <p className="menu-hint">Gamepad: START to begin | Keyboard: SPACE to begin</p>
     </div>
   );
 }

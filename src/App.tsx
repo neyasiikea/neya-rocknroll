@@ -6,7 +6,7 @@ import { GameScreen } from "./ui/GameScreen";
 import { PauseOverlay } from "./ui/PauseOverlay";
 import { ResultScreen } from "./ui/ResultScreen";
 import { getAllSongs } from "./charts/registry";
-import { pollInput } from "./game/input";
+import { pollInput, initKeyboardListener } from "./game/input";
 import type { GameResult } from "./types";
 import "./App.css";
 
@@ -15,9 +15,25 @@ function getLastResult(): GameResult | null {
 }
 
 function GameRouter() {
-  const { phase, navigateTo, resumeGame } = useGameState();
+  const { phase, navigateTo, resumeGame, pauseGame } = useGameState();
 
-  // Poll gamepad for menu navigation
+  // Init keyboard listener for fallback input
+  useEffect(() => {
+    initKeyboardListener();
+  }, []);
+
+  // Handle tab visibility change — pause when tab loses focus
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.hidden && phase === "playing") {
+        pauseGame();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [phase, pauseGame]);
+
+  // Poll gamepad/keyboard for menu navigation
   useEffect(() => {
     let animId: number;
     function poll() {
