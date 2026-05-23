@@ -35,6 +35,7 @@ export function GameScreen() {
     let finished = false;
     let fallbackStartTime = 0;
     let pauseTime = 0; // gameTime at which we paused
+    let lastLanePressed: boolean[] = [];
 
     // Init subsystems
     resetScore();
@@ -100,6 +101,7 @@ export function GameScreen() {
 
       const gameTime = getGameTime();
       const window = getTimingWindow();
+      lastLanePressed = input.lanePressed;
 
       // Handle lane presses
       for (let lane = 0; lane < laneCount; lane++) {
@@ -164,7 +166,7 @@ export function GameScreen() {
       const bass = getBassIntensity();
       const gameTime = getGameTime();
 
-      renderHighway(ctx, bass);
+      renderHighway(ctx, bass, lastLanePressed);
 
       // Show loading indicator
       if (!started) {
@@ -208,11 +210,12 @@ export function GameScreen() {
       renderParticles(ctx);
       renderHUD(ctx, CANVAS_W, CANVAS_H);
 
-      // Debug: visible note count
+      // Debug: visible note count + gamepad status
+      const hasGamepad = navigator.getGamepads()[0] ? "GP:OK" : "GP:none";
       ctx.fillStyle = "rgba(255,255,255,0.2)";
       ctx.font = "11px monospace";
       ctx.textAlign = "left";
-      ctx.fillText(`notes: ${visibleNotes.length}/${allRuntimeNotes.length}/${selectedChart.notes.length}  time: ${gameTime.toFixed(1)}s`, 10, CANVAS_H - 10);
+      ctx.fillText(`notes: ${visibleNotes.length}/${allRuntimeNotes.length}/${selectedChart.notes.length}  time: ${gameTime.toFixed(1)}s  ${hasGamepad}`, 10, CANVAS_H - 10);
     }
 
     startEngine({ update, render });

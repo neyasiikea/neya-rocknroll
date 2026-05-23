@@ -23,7 +23,7 @@ export function initHighway(cfg: HighwayConfig) {
   config = cfg;
 }
 
-export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: number) {
+export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: number, lanePressed?: boolean[]) {
   const { lanes, canvasWidth, canvasHeight, laneWidth, hitLineY } = config;
 
   // Dark background
@@ -110,6 +110,39 @@ export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: numb
   ctx.fillStyle = `rgba(0, 0, 0, 0.05)`;
   for (let y = 0; y < canvasHeight; y += 3) {
     ctx.fillRect(0, y, canvasWidth, 1);
+  }
+
+  // Lane press feedback indicators (below hit line)
+  if (lanePressed) {
+    const indicatorY = hitLineY + 8;
+    const indicatorH = canvasHeight - indicatorY - 2;
+    for (let i = 0; i < lanes; i++) {
+      const x = startX + i * laneWidth;
+      const pressed = lanePressed[i] ?? false;
+      if (pressed) {
+        // Pressed: bright glow
+        ctx.fillStyle = `${LANE_COLORS[i]}cc`;
+        ctx.shadowColor = LANE_COLORS[i];
+        ctx.shadowBlur = 20;
+      } else {
+        // Not pressed: dim indicator
+        ctx.fillStyle = `${LANE_COLORS[i]}22`;
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillRect(x + 4, indicatorY, laneWidth - 8, indicatorH);
+    }
+    ctx.shadowBlur = 0;
+
+    // Key labels below indicators
+    const labels = ["LT", "LB", "RB", "RT", "A"];
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "center";
+    for (let i = 0; i < lanes; i++) {
+      const x = startX + i * laneWidth + laneWidth / 2;
+      const pressed = lanePressed[i] ?? false;
+      ctx.fillStyle = pressed ? "#ffffff" : "#ffffff44";
+      ctx.fillText(labels[i] ?? "", x, indicatorY + indicatorH + 16);
+    }
   }
 
   // Vignette
