@@ -1,6 +1,7 @@
 // src/ui/SongSelect.tsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useGameState } from "./GameContext";
+import { pollInput } from "../game/input";
 import type { Song, Difficulty } from "../types";
 import "./SongSelect.css";
 
@@ -8,22 +9,31 @@ interface Props {
   songs: Song[];
 }
 
+const DIFFS: Difficulty[] = ["easy", "normal", "hard"];
+
+/** Filter songs that have at least one chart */
+function songsWithCharts(songs: Song[]): Song[] {
+  return songs.filter(s => s.charts.easy || s.charts.normal || s.charts.hard);
+}
+
 export function SongSelect({ songs }: Props) {
-  const { selectSong, selectDifficulty, startGame } = useGameState();
-  const [selectedSong, setSelected] = useState<Song | null>(null);
+  const { selectSong, selectDifficulty, startGame, navigateTo } = useGameState();
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
+  const playable = songsWithCharts(songs);
+  const selectedSong = playable[selectedIndex] ?? null;
 
-  function handleSongClick(song: Song) {
-    setSelected(song);
-    selectSong(song);
-  }
-
-  function handleDifficultyClick(diff: Difficulty) {
-    setDifficulty(diff);
+  // Sync selected song to context whenever selection changes
+  useEffect(() => {
     if (selectedSong) {
-      const chart = selectedSong.charts[diff];
+      selectSong(selectedSong);
+      const chart = selectedSong.charts[difficulty];
       if (chart) selectDifficulty(chart);
     }
+  }, [selectedIndex, difficulty]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleDifficultyChange(diff: Difficulty) {
+    setDifficulty(diff);
   }
 
   function handleStart() {
@@ -32,15 +42,76 @@ export function SongSelect({ songs }: Props) {
     }
   }
 
+  function goBack() {
+    navigateTo("menu");
+  }
+
+  // Gamepad / keyboard navigation
+  const lastMoveRef = useRef(0);
+  useEffect(() => {
+    let animId: number;
+    function poll() {
+      const input = pollInput();
+      const now = Date.now();
+
+      // Throttle navigation to ~150ms between moves
+      if (now - lastMoveRef.current > 150) {
+        if (input.upJustPressed) {
+          setSelectedIndex(i => (i - 1 + playable.length) % playable.length);
+          lastMoveRef.current = now;
+        }
+        if (input.downJustPressed) {
+          setSelectedIndex(i => (i + 1) % playable.length);
+          lastMoveRef.current = now;
+        }
+        if (input.leftJustPressed) {
+          const idx = DIFFS.indexOf(difficulty);
+          // Find previous available difficulty
+          for (let i = idx - 1; i >= 0; i--) {
+            if (selectedSong?.charts[DIFFS[i]]) {
+              setDifficulty(DIFFS[i]);
+              break;
+            }
+          }
+          lastMoveRef.current = now;
+        }
+        if (input.rightJustPressed) {
+          const idx = DIFFS.indexOf(difficulty);
+          for (let i = idx + 1; i < DIFFS.length; i++) {
+            if (selectedSong?.charts[DIFFS[i]]) {
+              setDifficulty(DIFFS[i]);
+              break;
+            }
+          }
+          lastMoveRef.current = now;
+        }
+      }
+
+      if (input.confirmJustPressed) {
+        handleStart();
+      }
+      if (input.backJustPressed) {
+        goBack();
+      }
+
+      animId = requestAnimationFrame(poll);
+    }
+    animId = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(animId);
+  }); // intentionally runs every render for polling
+
   return (
     <div className="song-select">
       <h2>SELECT SONG</h2>
+      {playable.length === 0 && (
+        <p style={{ color: "#666" }}>No songs with charts available. Add charts to src/charts/</p>
+      )}
       <div className="song-list">
-        {songs.map(song => (
+        {playable.map((song, i) => (
           <div
             key={song.id}
-            className={`song-item ${selectedSong?.id === song.id ? "selected" : ""}`}
-            onClick={() => handleSongClick(song)}
+            className={`song-item ${i === selectedIndex ? "selected" : ""}`}
+            onClick={() => { setSelectedIndex(i); }}
           >
             <span className="song-title">{song.title}</span>
             <span className="song-artist">{song.artist}</span>
@@ -50,11 +121,11 @@ export function SongSelect({ songs }: Props) {
 
       {selectedSong && (
         <div className="difficulty-select">
-          {(["easy", "normal", "hard"] as Difficulty[]).map(diff => (
+          {DIFFS.map(diff => (
             <button
               key={diff}
               className={`diff-btn ${difficulty === diff ? "selected" : ""}`}
-              onClick={() => handleDifficultyClick(diff)}
+              onClick={() => handleDifficultyChange(diff)}
               disabled={!selectedSong.charts[diff]}
             >
               {diff.toUpperCase()}
@@ -65,9 +136,13 @@ export function SongSelect({ songs }: Props) {
 
       {selectedSong && (
         <button className="diff-btn" style={{ marginTop: 24 }} onClick={handleStart}>
-          START (A)
+          START (A / Enter)
         </button>
       )}
+
+      <p className="result-hint" style={{ position: "static", marginTop: 30 }}>
+        D-pad / Arrow keys: navigate | A / Enter: start | B / Esc: back
+      </p>
     </div>
   );
 }

@@ -38,6 +38,10 @@ export function playAudio(buffer: AudioBuffer) {
   gainNode.connect(analyserNode);
   analyserNode.connect(audioCtx.destination);
 
+  // Resume if suspended (browser autoplay policy)
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
   startOffset = audioCtx.currentTime + 0.05; // Small scheduling headroom
   sourceNode.start(startOffset);
   isPlaying = true;

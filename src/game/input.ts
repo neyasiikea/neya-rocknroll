@@ -16,10 +16,14 @@ export interface InputState {
   laneJustPressed: boolean[];
   /** 本帧刚松开的按键 (falling edge) */
   laneJustReleased: boolean[];
-  /** 菜单按键 rising edge */
+  /** 菜单导航 rising edge */
   confirmJustPressed: boolean;
   backJustPressed: boolean;
   startJustPressed: boolean;
+  upJustPressed: boolean;
+  downJustPressed: boolean;
+  leftJustPressed: boolean;
+  rightJustPressed: boolean;
 }
 
 function getMapping(): KeyMapping {
@@ -86,6 +90,10 @@ export function pollInput(): InputState {
     confirmJustPressed: false,
     backJustPressed: false,
     startJustPressed: false,
+    upJustPressed: false,
+    downJustPressed: false,
+    leftJustPressed: false,
+    rightJustPressed: false,
   };
 
   // Keyboard fallback
@@ -99,13 +107,15 @@ export function pollInput(): InputState {
   state.confirmJustPressed = consumeKeyJustDown("Enter");
   state.backJustPressed = consumeKeyJustDown("Escape");
   state.startJustPressed = consumeKeyJustDown(" ");
+  state.upJustPressed = consumeKeyJustDown("ArrowUp");
+  state.downJustPressed = consumeKeyJustDown("ArrowDown");
+  state.leftJustPressed = consumeKeyJustDown("ArrowLeft");
+  state.rightJustPressed = consumeKeyJustDown("ArrowRight");
   // Clear stale just-up events
   keysJustDown.clear();
   keysJustUp.clear();
 
   if (!gamepad) return state;
-
-  const laneCount = mapping.lanes.length;
 
   for (let i = 0; i < laneCount; i++) {
     const btnIdx = mapping.lanes[i];
@@ -127,9 +137,14 @@ export function pollInput(): InputState {
     return p && !was;
   };
 
-  state.confirmJustPressed = checkRising(mapping.confirm);
-  state.backJustPressed = checkRising(mapping.back);
-  state.startJustPressed = checkRising(mapping.start);
+  state.confirmJustPressed = checkRising(mapping.confirm) || state.confirmJustPressed;
+  state.backJustPressed = checkRising(mapping.back) || state.backJustPressed;
+  state.startJustPressed = checkRising(mapping.start) || state.startJustPressed;
+  // D-pad (buttons 12-15): up, down, left, right
+  state.upJustPressed = checkRising(12) || state.upJustPressed;
+  state.downJustPressed = checkRising(13) || state.downJustPressed;
+  state.leftJustPressed = checkRising(14) || state.leftJustPressed;
+  state.rightJustPressed = checkRising(15) || state.rightJustPressed;
 
   return state;
 }
