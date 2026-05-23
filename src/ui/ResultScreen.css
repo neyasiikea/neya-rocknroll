@@ -1,0 +1,46 @@
+/* src/ui/ResultScreen.css */
+.result-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+  min-height: 100vh;
+  background: #0a0a0f;
+  color: #fff;
+  font-family: monospace;
+}
+
+.grade {
+  font-size: 96px;
+  font-weight: bold;
+  text-shadow: 0 0 30px #ff3366, 0 0 60px #ff3366;
+  margin-bottom: 20px;
+}
+
+.stat-row {
+  display: flex;
+  gap: 40px;
+  margin-top: 30px;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.result-hint {
+  position: absolute;
+  bottom: 40px;
+  color: #444;
+  font-size: 14px;
+}
