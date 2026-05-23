@@ -1,0 +1,24 @@
+/* src/ui/PauseOverlay.css */
+.pause-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  color: #fff;
+  font-family: monospace;
+}
+
+.pause-overlay h2 {
+  font-size: 48px;
+  margin-bottom: 40px;
+  text-shadow: 0 0 20px #ff3366;
+}
+
+.pause-overlay p {
+  color: #666;
+  font-size: 14px;
+}
