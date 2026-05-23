@@ -1,0 +1,77 @@
+/* src/ui/SongSelect.css */
+.song-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+  min-height: 100vh;
+  background: #0a0a0f;
+  color: #fff;
+  font-family: monospace;
+}
+
+.song-select h2 {
+  font-size: 28px;
+  margin-bottom: 40px;
+  color: #ff3366;
+}
+
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.song-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #111118;
+  border: 1px solid #222;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.song-item:hover, .song-item.selected {
+  border-color: #ff3366;
+  box-shadow: 0 0 12px #ff336644;
+}
+
+.song-title {
+  font-size: 18px;
+}
+
+.song-artist {
+  font-size: 13px;
+  color: #666;
+}
+
+.difficulty-select {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.diff-btn {
+  padding: 10px 24px;
+  background: #111118;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.diff-btn:hover {
+  border-color: #3399ff;
+  box-shadow: 0 0 8px #3399ff44;
+}
+
+.diff-btn.selected {
+  border-color: #3399ff;
+  background: #3399ff22;
+}
