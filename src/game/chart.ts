@@ -66,16 +66,17 @@ export function markNoteMissed(index: number) {
   }
 }
 
-/** 标记已过判定窗口仍未击中的音符为 miss */
-export function autoMissPastNotes(currentTime: number, windowMs: number) {
+/** 标记已过判定窗口仍未击中的音符为 miss，跳过指定索引 */
+export function autoMissPastNotes(currentTime: number, windowMs: number, skipIndices?: Set<number>) {
   const windowSec = windowMs / 1000;
   let missedCount = 0;
-  for (const note of runtimeNotes) {
+  runtimeNotes.forEach((note, i) => {
+    if (skipIndices?.has(i)) return;
     if (!note.hit && !note.missed && currentTime - note.time > windowSec) {
       note.missed = true;
       missedCount++;
     }
-  }
+  });
   return missedCount;
 }
 

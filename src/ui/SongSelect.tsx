@@ -136,12 +136,12 @@ export function SongSelect({ songs }: Props) {
 
       {selectedSong && (
         <button className="diff-btn" style={{ marginTop: 24 }} onClick={handleStart}>
-          START (A / Enter)
+          START (X / Enter)
         </button>
       )}
 
       <p className="result-hint" style={{ position: "static", marginTop: 30 }}>
-        D-pad / Arrow keys: navigate | A / Enter: start | B / Esc: back
+        D-pad / Arrow keys: navigate | X / Enter: start | B / Esc: back
       </p>
     </div>
   );

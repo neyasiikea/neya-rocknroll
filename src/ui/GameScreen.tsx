@@ -36,6 +36,7 @@ export function GameScreen() {
     let fallbackStartTime = 0;
     let pauseTime = 0; // gameTime at which we paused
     let lastLanePressed: boolean[] = [];
+    const activeHolds = new Map<number, { noteIndex: number; holdEndTime: number; lastTick: number }>();
 
     // Init subsystems
     resetScore();
@@ -103,7 +104,7 @@ export function GameScreen() {
       const window = getTimingWindow();
       lastLanePressed = input.lanePressed;
 
-      // Handle lane presses
+      // Handle lane presses (tap + hold start)
       for (let lane = 0; lane < laneCount; lane++) {
         if (input.laneJustPressed[lane]) {
           const notes = getJudgableNotes(gameTime, window.good);
@@ -125,8 +126,16 @@ export function GameScreen() {
             if (idx >= 0) {
               const result = judgeHit(bestMatch.time, gameTime, window);
               if (result) {
-                markNoteJudged(idx);
+                const isHold = bestMatch.holdDuration > 0;
+
+                // Hold notes: track in activeHolds, don't mark judged yet (keep rendering)
+                if (isHold) {
+                  activeHolds.set(lane, { noteIndex: idx, holdEndTime: bestMatch.holdEndTime, lastTick: gameTime });
+                } else {
+                  markNoteJudged(idx);
+                }
                 addJudgment(result.judgment);
+
                 const totalWidth = laneCount * LANE_WIDTH;
                 const startX = (CANVAS_W - totalWidth) / 2;
                 spawnHitEffect(
@@ -139,11 +148,38 @@ export function GameScreen() {
             }
           }
         }
+
+        // Handle hold release
+        if (input.laneJustReleased[lane] && activeHolds.has(lane)) {
+          const hold = activeHolds.get(lane)!;
+          activeHolds.delete(lane);
+          if (gameTime >= hold.holdEndTime - window.perfect / 1000) {
+            // Held long enough — bonus points
+            addJudgment("perfect");
+          } else {
+            // Released too early
+            addJudgment("miss");
+          }
+        }
       }
 
-      // Auto-miss expired notes
-      const missed = autoMissPastNotes(gameTime, window.good);
-      for (let i = 0; i < missed; i++) {
+      // Hold note ticks — give periodic perfects for sustained holds
+      for (const [lane, hold] of activeHolds) {
+        if (input.lanePressed[lane] && gameTime - hold.lastTick >= 0.25) {
+          // Give a small bonus every 250ms of sustained hold
+          hold.lastTick = gameTime;
+          addJudgment("perfect");
+        }
+        // Auto-complete hold that reached its end time
+        if (gameTime >= hold.holdEndTime) {
+          activeHolds.delete(lane);
+        }
+      }
+
+      // Auto-miss expired notes (skip actively-held hold notes)
+      const heldIndices = new Set(Array.from(activeHolds.values()).map(h => h.noteIndex));
+      const missedCount = autoMissPastNotes(gameTime, window.good, heldIndices);
+      for (let i = 0; i < missedCount; i++) {
         addJudgment("miss");
       }
 

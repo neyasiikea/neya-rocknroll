@@ -3,10 +3,10 @@ import type { KeyMapping } from "../types";
 
 /** 默认按键映射 (XInput standard) */
 export const DEFAULT_MAPPING: KeyMapping = {
-  lanes: [6, 4, 5, 7, 0],  // LT, LB, RB, RT, A
-  confirm: 0,   // A
+  lanes: [6, 4, 5, 7, 0],  // LT, LB, RB, RT, A (5th lane)
+  confirm: 2,   // X (confirm/start — separate from lane A)
   back: 1,      // B
-  start: 9,     // Start
+  start: 9,     // Start (pause/menu)
 };
 
 export interface InputState {
