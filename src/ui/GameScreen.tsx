@@ -16,8 +16,16 @@ const CANVAS_W = 800;
 const CANVAS_H = 600;
 const HIT_LINE_Y = 520;
 const LANE_WIDTH = 80;
-const NOTE_SPEED = 350;
 const NOTE_HEIGHT = 20;
+
+function getNoteSpeed(difficulty: string): number {
+  switch (difficulty) {
+    case "easy": return 220;
+    case "normal": return 320;
+    case "hard": return 400;
+    default: return 300;
+  }
+}
 
 export function GameScreen() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -29,6 +37,7 @@ export function GameScreen() {
     const ctx = canvas.getContext("2d")!;
 
     const laneCount = selectedChart.lanes;
+    const noteSpeed = getNoteSpeed(selectedChart.difficulty);
     let audioBuffer: AudioBuffer | null = null;
     let started = false;
     let paused = false;
@@ -44,8 +53,8 @@ export function GameScreen() {
     resetScore();
     clearParticles();
     loadChart(selectedChart);
-    initHighway({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed: NOTE_SPEED });
-    initNotes({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed: NOTE_SPEED, noteHeight: NOTE_HEIGHT });
+    initHighway({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed: noteSpeed });
+    initNotes({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed: noteSpeed, noteHeight: NOTE_HEIGHT });
     resetInputState();
 
     let audioFailed = false;
@@ -245,7 +254,7 @@ export function GameScreen() {
       }
 
       // Build visible notes
-      const lookAhead = (CANVAS_H / NOTE_SPEED) + 1;
+      const lookAhead = (CANVAS_H / noteSpeed) + 1;
       const allRuntimeNotes = getJudgableNotes(gameTime, lookAhead * 1000);
       // Also include actively held notes (not in getJudgableNotes because !hit fails)
       const holdIndices = new Set(Array.from(activeHolds.values()).map(h => h.noteIndex));

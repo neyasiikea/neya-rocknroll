@@ -1,19 +1,13 @@
-// Chart pattern generator — produces Note arrays from musical patterns
+// Chart pattern generator — difficulty-aware note generation
 import type { Note, Chart, Difficulty } from "../types";
 
 interface Section {
-  startBeat: number;    // starting beat number
-  endBeat: number;      // ending beat number
+  startBeat: number;
+  endBeat: number;
   type: SectionType;
 }
 
-type SectionType =
-  | "intro"      // sparse, alternating lanes
-  | "verse"      // quarter notes, varied lanes
-  | "prechorus"  // building, some chords
-  | "chorus"     // dense, chords, holds
-  | "bridge"     // varied, mix of holds and taps
-  | "outro";     // winding down, long holds at end
+type SectionType = "intro" | "verse" | "prechorus" | "chorus" | "bridge" | "outro";
 
 interface ChartParams {
   songId: string;
@@ -28,78 +22,96 @@ function pickLane(lanes: number, prev: number, spread: number): number {
   return lane % lanes;
 }
 
-/** Quarter note per beat, ~0-2 chords every 4 beats */
-function generateVerse(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number) {
-  let prev = 0;
-  for (let b = beatStart; b < beatEnd; b += 1) {
-    const lane = pickLane(lanes, prev, lanes);
-    notes.push({ time: b * bps, lane });
-    prev = lane;
-    // occasional chord every 4 beats
-    if (b % 4 === 0 && lanes >= 3) {
-      const chordLane = pickLane(lanes, lane, lanes);
-      if (chordLane !== lane) {
-        notes.push({ time: b * bps, lane: chordLane });
-      }
-    }
-  }
+/** Density step based on difficulty */
+function step(bps: number, diff: Difficulty, baseBeats: number): number {
+  const mul: Record<Difficulty, number> = { easy: 2.5, normal: 1.5, hard: 1.0 };
+  return baseBeats * mul[diff] * bps;
 }
 
-/** Eight notes, more chord density */
-function generateChorus(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number) {
-  let prev = 0;
-  for (let b = beatStart; b < beatEnd; b += 0.5) {
-    const lane = pickLane(lanes, prev, lanes >= 4 ? 4 : lanes);
-    notes.push({ time: b * bps, lane });
-    prev = lane;
-    // chords every 2 beats
-    if (Math.abs(b % 2) < 0.01 && lanes >= 3) {
-      for (let c = 0; c < (lanes >= 5 ? 2 : 1); c++) {
-        const cl = pickLane(lanes, lane, lanes);
-        if (cl !== lane) notes.push({ time: b * bps, lane: cl });
-      }
-    }
-    // hold every 8 beats
-    if (Math.abs(b % 8) < 0.01 && b > beatStart + 2) {
-      const last = notes[notes.length - 1];
-      if (last && !last.hold) last.hold = bps * 2;
-    }
-  }
+/** Whether to add chords at this beat */
+function doChord(diff: Difficulty, beatInterval: number): boolean {
+  const odds: Record<Difficulty, number> = { easy: 0, normal: 0.25, hard: 0.5 };
+  return Math.random() < odds[diff] && beatInterval >= 4;
 }
 
-/** Sparse half notes, simple alternating */
-function generateIntro(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number) {
+/** Whether to add a hold at this beat */
+function doHold(diff: Difficulty): boolean {
+  return diff !== "easy" && Math.random() < 0.3;
+}
+
+function generateIntro(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number, diff: Difficulty) {
   let prev = 0;
-  for (let b = beatStart; b < beatEnd; b += 2) {
+  const spacing = diff === "easy" ? 4 : diff === "normal" ? 3 : 2;
+  for (let b = beatStart; b < beatEnd; b += spacing) {
     const lane = (prev + 1 + Math.floor(Math.random() * (lanes - 1))) % lanes;
     notes.push({ time: b * bps, lane });
     prev = lane;
   }
 }
 
-/** Building intensity, more chords than verse, less than chorus */
-function generatePrechorus(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number) {
+function generateVerse(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number, diff: Difficulty) {
   let prev = 0;
-  for (let b = beatStart; b < beatEnd; b += 1) {
+  const spacing = diff === "easy" ? 2 : diff === "normal" ? 1 : 1;
+  for (let b = beatStart; b < beatEnd; b += spacing) {
     const lane = pickLane(lanes, prev, lanes);
     notes.push({ time: b * bps, lane });
     prev = lane;
-    if (b % 2 === 0 && lanes >= 3) {
+    // occasional chord
+    if (diff !== "easy" && b % 8 === 0 && lanes >= 3) {
       const cl = pickLane(lanes, lane, lanes);
       if (cl !== lane) notes.push({ time: b * bps, lane: cl });
     }
   }
-  // Hold at end of prechorus
-  const last = notes[notes.length - 1];
-  if (last) last.hold = bps * 3;
 }
 
-/** Mixed patterns, more holds */
-function generateBridge(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number) {
+function generatePrechorus(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number, diff: Difficulty) {
   let prev = 0;
-  for (let b = beatStart; b < beatEnd; b += 1) {
-    if (b % 3 === 0) {
-      // Hold every 3 beats
+  const spacing = diff === "easy" ? 2 : 1;
+  for (let b = beatStart; b < beatEnd; b += spacing) {
+    const lane = pickLane(lanes, prev, lanes);
+    notes.push({ time: b * bps, lane });
+    prev = lane;
+    if (diff !== "easy" && b % 4 === 0 && lanes >= 3) {
+      const cl = pickLane(lanes, lane, lanes);
+      if (cl !== lane) notes.push({ time: b * bps, lane: cl });
+    }
+  }
+  // Hold at end of prechorus (normal+ only)
+  if (diff !== "easy") {
+    const last = notes[notes.length - 1];
+    if (last) last.hold = bps * 2;
+  }
+}
+
+function generateChorus(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number, diff: Difficulty) {
+  let prev = 0;
+  const spacing = diff === "easy" ? 1 : diff === "normal" ? 0.75 : 0.5;
+  const chordEvery = diff === "easy" ? 999 : diff === "normal" ? 4 : 2;
+  for (let b = beatStart; b < beatEnd; b += spacing) {
+    const lane = pickLane(lanes, prev, lanes >= 4 ? 4 : lanes);
+    notes.push({ time: b * bps, lane });
+    prev = lane;
+    // chords
+    if (Math.abs(b % chordEvery) < 0.01 && lanes >= 3) {
+      const count = diff === "hard" ? 2 : 1;
+      for (let c = 0; c < count; c++) {
+        const cl = pickLane(lanes, lane, lanes);
+        if (cl !== lane) notes.push({ time: b * bps, lane: cl });
+      }
+    }
+    // hold (normal+ only)
+    if (diff !== "easy" && Math.abs(b % 8) < 0.01 && b > beatStart + 4) {
+      const last = notes[notes.length - 1];
+      if (last && !last.hold) last.hold = bps * 2;
+    }
+  }
+}
+
+function generateBridge(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number, diff: Difficulty) {
+  let prev = 0;
+  const spacing = diff === "easy" ? 3 : 1;
+  for (let b = beatStart; b < beatEnd; b += spacing) {
+    if (diff !== "easy" && b % 4 === 0) {
       const lane = pickLane(lanes, prev, lanes);
       notes.push({ time: b * bps, lane, hold: bps * 1.5 });
       prev = lane;
@@ -111,10 +123,10 @@ function generateBridge(notes: Note[], beatStart: number, beatEnd: number, bps: 
   }
 }
 
-/** Winding down with long final hold */
-function generateOutro(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number) {
+function generateOutro(notes: Note[], beatStart: number, beatEnd: number, bps: number, lanes: number, diff: Difficulty) {
   let prev = 0;
-  for (let b = beatStart; b < beatEnd - 4; b += 2) {
+  const spacing = diff === "easy" ? 4 : 2;
+  for (let b = beatStart; b < beatEnd - 4; b += spacing) {
     const lane = (prev + 1) % lanes;
     notes.push({ time: b * bps, lane });
     prev = lane;
@@ -123,13 +135,10 @@ function generateOutro(notes: Note[], beatStart: number, beatEnd: number, bps: n
   notes.push({ time: (beatEnd - 4) * bps, lane: 0, hold: bps * 4 });
 }
 
-const GENERATORS: Record<SectionType, (notes: Note[], bs: number, be: number, bps: number, lanes: number) => void> = {
-  intro: generateIntro,
-  verse: generateVerse,
-  prechorus: generatePrechorus,
-  chorus: generateChorus,
-  bridge: generateBridge,
-  outro: generateOutro,
+type GenFn = (notes: Note[], bs: number, be: number, bps: number, lanes: number, diff: Difficulty) => void;
+const GENERATORS: Record<SectionType, GenFn> = {
+  intro: generateIntro, verse: generateVerse, prechorus: generatePrechorus,
+  chorus: generateChorus, bridge: generateBridge, outro: generateOutro,
 };
 
 export function generateChart(params: ChartParams): Chart {
@@ -139,7 +148,7 @@ export function generateChart(params: ChartParams): Chart {
 
   for (const section of params.sections) {
     const gen = GENERATORS[section.type];
-    gen(notes, section.startBeat, section.endBeat, bps, laneCount);
+    gen(notes, section.startBeat, section.endBeat, bps, laneCount, params.difficulty);
   }
 
   // Remove duplicate time+lane entries

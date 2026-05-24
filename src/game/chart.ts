@@ -3,9 +3,9 @@ import type { Chart, Difficulty, TimingWindow } from "../types";
 
 /** 各难度的判定窗口 */
 const TIMING_WINDOWS: Record<Difficulty, TimingWindow> = {
-  easy:   { perfect: 60,  good: 120 },
-  normal: { perfect: 50,  good: 100 },
-  hard:   { perfect: 43,  good: 77 },
+  easy:   { perfect: 100, good: 200 },
+  normal: { perfect: 70,  good: 140 },
+  hard:   { perfect: 50,  good: 100 },
 };
 
 export interface RuntimeNote {
