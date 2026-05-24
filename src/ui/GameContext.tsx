@@ -1,18 +1,19 @@
 // src/ui/GameContext.tsx
 import React, { createContext, useContext, useState, useCallback } from "react";
-import type { GamePhase, Song, Chart } from "../types";
+import type { GamePhase, Song, Chart, GameResult } from "../types";
 
 interface GameState {
   phase: GamePhase;
   selectedSong: Song | null;
   selectedChart: Chart | null;
+  lastResult: GameResult | null;
   navigateTo: (phase: GamePhase) => void;
   selectSong: (song: Song) => void;
   selectDifficulty: (chart: Chart) => void;
   startGame: () => void;
   pauseGame: () => void;
   resumeGame: () => void;
-  endGame: () => void;
+  endGame: (result?: GameResult) => void;
 }
 
 const GameContext = createContext<GameState | null>(null);
@@ -21,6 +22,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [phase, setPhase] = useState<GamePhase>("menu");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedChart, setSelectedChart] = useState<Chart | null>(null);
+  const [lastResult, setLastResult] = useState<GameResult | null>(null);
 
   const navigateTo = useCallback((p: GamePhase) => setPhase(p), []);
   const selectSong = useCallback((song: Song) => {
@@ -33,11 +35,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const startGame = useCallback(() => setPhase("playing"), []);
   const pauseGame = useCallback(() => setPhase("paused"), []);
   const resumeGame = useCallback(() => setPhase("playing"), []);
-  const endGame = useCallback(() => setPhase("result"), []);
+  const endGame = useCallback((result?: GameResult) => {
+    if (result) setLastResult(result);
+    setPhase("result");
+  }, []);
 
   return (
     <GameContext.Provider value={{
-      phase, selectedSong, selectedChart,
+      phase, selectedSong, selectedChart, lastResult,
       navigateTo, selectSong, selectDifficulty,
       startGame, pauseGame, resumeGame, endGame,
     }}>

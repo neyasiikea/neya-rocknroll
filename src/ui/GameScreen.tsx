@@ -239,15 +239,16 @@ export function GameScreen() {
 
       if (shouldEnd && !finished) {
         finished = true;
-        (window as any).__lastResult = buildResult(selectedSong.id, selectedChart.difficulty);
       }
 
       if (finished) {
         resultTransition += _dt || 0.016;
         if (resultTransition >= 1.5) {
+          const result = buildResult(selectedSong.id, selectedChart.difficulty);
           stopEngine();
           stopAudio();
-          endGame();
+          // Defer to ensure React processes after rAF
+          setTimeout(() => endGame(result), 50);
         }
       }
 
