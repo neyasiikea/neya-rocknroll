@@ -20,7 +20,8 @@ const LANE_WIDTH = 80;
 const NOTE_HEIGHT = 20;
 const MAX_SONG_DURATION = 210; // 3:30 cap
 const FADE_OUT_DURATION = 5;   // last 5s fade
-const COUNTDOWN_DURATION = 3;  // 3-2-1-GO
+const READY_BUFFER = 2;        // 2s empty highway before first note
+const GO_DURATION = 0.5;       // "GO!" display duration
 
 function getNoteSpeed(difficulty: string): number {
   switch (difficulty) { case "easy": return 220; case "normal": return 320; case "hard": return 400; default: return 300; }
@@ -106,35 +107,38 @@ export function GameScreen() {
         }
       }
 
-      // ── Countdown (3-2-1-GO) ──
-      if (countdownPhase > 0 && countdownPhase <= 3) {
+      // ── Countdown (3-2-1) ──
+      if (countdownPhase >= 1 && countdownPhase <= 3) {
         countdownTimer += _dt || 0.016;
         if (countdownTimer >= 1.0) {
           countdownTimer = 0;
-          if (countdownPhase === 3) {
-            // GO!
-            countdownPhase = 4;
-            countdownTimer = 0;
-          } else {
-            countdownPhase++;
-          }
+          countdownPhase++;
         }
-        return; // block all input during countdown
+        return;
       }
 
+      // ── GO! ──
       if (countdownPhase === 4) {
         countdownTimer += _dt || 0.016;
-        if (countdownTimer >= 0.5) {
-          // Start game
-          if (audioBuffer) {
-            playAudio(audioBuffer);
-            audioStartTime = getPlaybackTime();
-          } else {
-            fallbackStartTime = performance.now() / 1000;
-          }
+        if (countdownTimer >= GO_DURATION) {
+          countdownPhase = 5;
+          countdownTimer = 0;
+          // Start audio now — notes won't appear for READY_BUFFER seconds
+          if (audioBuffer) { playAudio(audioBuffer); }
+          else { fallbackStartTime = performance.now() / 1000; }
+        }
+        return;
+      }
+
+      // ── Ready buffer (empty highway, audio playing, no notes judged) ──
+      if (countdownPhase === 5) {
+        countdownTimer += _dt || 0.016;
+        if (countdownTimer >= READY_BUFFER) {
           started = true;
           countdownPhase = 0;
         }
+        // Render highway but don't process notes
+        lastLanePressed = input.lanePressed;
         return;
       }
 
@@ -235,7 +239,8 @@ export function GameScreen() {
       const allJudged = (getHitCount() + getMissCount()) >= getTotalNotes() && getTotalNotes() > 0;
       const audioDone = hasAudioEnded() || (audioFailed && fallbackStartTime > 0);
       const timeUp = gameTime >= effectiveDuration;
-      const shouldEnd = (audioDone || timeUp) && allJudged;
+      // Time cap forces end regardless of remaining notes
+      const shouldEnd = timeUp || (audioDone && allJudged);
 
       if (shouldEnd && !finished) {
         finished = true;
@@ -290,6 +295,15 @@ export function GameScreen() {
         ctx.font = "bold 60px monospace";
         ctx.textAlign = "center";
         ctx.fillText("GO!", CANVAS_W / 2, CANVAS_H / 2);
+        return;
+      }
+      if (countdownPhase === 5) {
+        // Ready buffer — show highway, no notes, countdown to start
+        const remaining = Math.ceil(READY_BUFFER - countdownTimer);
+        ctx.fillStyle = "#ffffff88";
+        ctx.font = "bold 24px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`Get Ready...`, CANVAS_W / 2, CANVAS_H / 2 - 20);
         return;
       }
 
