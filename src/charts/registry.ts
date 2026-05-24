@@ -23,6 +23,12 @@ import { chart as howDoneHard } from "./how-its-done/hard";
 import { chart as takedownEasy } from "./takedown/easy";
 import { chart as takedownNormal } from "./takedown/normal";
 import { chart as takedownHard } from "./takedown/hard";
+import { chart as twoTigersEasy } from "./two-tigers/easy";
+import { chart as twoTigersNormal } from "./two-tigers/normal";
+import { chart as twoTigersHard } from "./two-tigers/hard";
+import { chart as whiteRabbitEasy } from "./white-rabbit/easy";
+import { chart as whiteRabbitNormal } from "./white-rabbit/normal";
+import { chart as whiteRabbitHard } from "./white-rabbit/hard";
 
 const songs: Song[] = [
   {
@@ -80,6 +86,20 @@ const songs: Song[] = [
     artist: "KPop Demon Hunters",
     audioPath: "/songs/KPop_Demon_Hunters_-_Takedown.mp3",
     charts: { easy: takedownEasy, normal: takedownNormal, hard: takedownHard },
+  },
+  {
+    id: "two-tigers",
+    title: "两只老虎",
+    artist: "Traditional",
+    audioPath: "/songs/两只老虎.mp3",
+    charts: { easy: twoTigersEasy, normal: twoTigersNormal, hard: twoTigersHard },
+  },
+  {
+    id: "white-rabbit",
+    title: "小白兔白又白",
+    artist: "Traditional",
+    audioPath: "/songs/小白兔白又白.mp4",
+    charts: { easy: whiteRabbitEasy, normal: whiteRabbitNormal, hard: whiteRabbitHard },
   },
 ];
 
