@@ -7,7 +7,9 @@ button:hover{background:#333}
 #log{white-space:pre-wrap;margin-top:10px;max-height:55vh;overflow:auto;background:#111;padding:10px;border-radius:6px;font-size:12px}
 </style></head><body>
 <h1>Audio Chart Generator</h1>
-<p>Click to analyze each song and download generated charts. Replace files in <code>src/charts/&lt;song&gt;/</code>.</p>
+<p>Click a song, or use <b>Generate ALL</b> to batch-process everything into one script.</p>
+<div><button onclick="genAll()" style="background:#ff3366;font-weight:bold;font-size:16px;padding:12px 28px">▶ Generate ALL 18 Songs</button></div>
+<hr style="border-color:#333;margin:12px 0">
 <div id="buttons"></div>
 <pre id="log"></pre>
 <script>
