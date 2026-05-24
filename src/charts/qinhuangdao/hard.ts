@@ -1,0 +1,2 @@
+import { generateChart } from "../generator";
+export const chart = generateChart({ songId:"qinhuangdao",difficulty:"hard",bpm:120,sections:[{startBeat:0,endBeat:48,type:"intro"},{startBeat:48,endBeat:112,type:"verse"},{startBeat:112,endBeat:176,type:"chorus"},{startBeat:176,endBeat:240,type:"verse"},{startBeat:240,endBeat:304,type:"chorus"},{startBeat:304,endBeat:368,type:"bridge"},{startBeat:368,endBeat:400,type:"outro"}]});

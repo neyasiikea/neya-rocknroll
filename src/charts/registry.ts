@@ -47,6 +47,12 @@ import { chart as heyJudeHard } from "./hey-jude/hard";
 import { chart as trainToCloudEasy } from "./train-to-cloud/easy";
 import { chart as trainToCloudNormal } from "./train-to-cloud/normal";
 import { chart as trainToCloudHard } from "./train-to-cloud/hard";
+import { chart as buwannengEasy } from "./buwanneng/easy";
+import { chart as buwannengNormal } from "./buwanneng/normal";
+import { chart as buwannengHard } from "./buwanneng/hard";
+import { chart as qinhuangdaoEasy } from "./qinhuangdao/easy";
+import { chart as qinhuangdaoNormal } from "./qinhuangdao/normal";
+import { chart as qinhuangdaoHard } from "./qinhuangdao/hard";
 
 const songs: Song[] = [
   {
@@ -148,6 +154,16 @@ const songs: Song[] = [
     id: "train-to-cloud", title: "火车驶向云外，梦安魂于九霄", artist: "刺猬",
     audioPath: "/songs/刺猬 - 火车驶向云外，梦安魂于九霄.mp3",
     charts: { easy: trainToCloudEasy, normal: trainToCloudNormal, hard: trainToCloudHard },
+  },
+  {
+    id: "buwanneng", title: "不万能的喜剧", artist: "万能青年旅店",
+    audioPath: "/songs/万能青年旅店 - 不万能的喜剧.mp3",
+    charts: { easy: buwannengEasy, normal: buwannengNormal, hard: buwannengHard },
+  },
+  {
+    id: "qinhuangdao", title: "秦皇岛", artist: "万能青年旅店",
+    audioPath: "/songs/万能青年旅店 - 秦皇岛.mp3",
+    charts: { easy: qinhuangdaoEasy, normal: qinhuangdaoNormal, hard: qinhuangdaoHard },
   },
 ];
 

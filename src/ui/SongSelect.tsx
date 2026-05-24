@@ -20,8 +20,18 @@ export function SongSelect({ songs }: Props) {
   const { selectSong, selectDifficulty, startGame, navigateTo } = useGameState();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
+  const listRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const playable = songsWithCharts(songs);
   const selectedSong = playable[selectedIndex] ?? null;
+
+  // Auto-scroll selected item into view
+  useEffect(() => {
+    const el = itemRefs.current[selectedIndex];
+    if (el) {
+      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [selectedIndex]);
 
   // Sync selected song to context whenever selection changes
   useEffect(() => {
@@ -106,10 +116,11 @@ export function SongSelect({ songs }: Props) {
       {playable.length === 0 && (
         <p style={{ color: "#666" }}>No songs with charts available. Add charts to src/charts/</p>
       )}
-      <div className="song-list">
+      <div className="song-list" ref={listRef}>
         {playable.map((song, i) => (
           <div
             key={song.id}
+            ref={el => { itemRefs.current[i] = el; }}
             className={`song-item ${i === selectedIndex ? "selected" : ""}`}
             onClick={() => { setSelectedIndex(i); }}
           >
