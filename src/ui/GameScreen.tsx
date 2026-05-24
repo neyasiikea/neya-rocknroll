@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import { useGameState } from "./GameContext";
 import { startEngine, stopEngine } from "../game/engine";
-import { loadAudio, playAudio, stopAudio, getPlaybackTime, getBassIntensity, getIsPlaying, suspendAudio, resumeAudio, getCalibration, setCalibration } from "../game/audio";
+import { loadAudio, playAudio, stopAudio, getPlaybackTime, getBassIntensity, getIsPlaying, suspendAudio, resumeAudio, getCalibration, setCalibration, hasAudioEnded } from "../game/audio";
 import { pollInput, resetInputState } from "../game/input";
 import { loadChart, getTimingWindow, getJudgableNotes, markNoteJudged, findNoteIndex, autoMissPastNotes, getTotalNotes, getHitCount, getMissCount, getRuntimeNotes } from "../game/chart";
 import { judgeHit } from "../game/judge";
@@ -43,6 +43,7 @@ export function GameScreen() {
     let started = false;
     let paused = false;
     let finished = false;
+    let resultTransition = 0; // fade-out timer
     let fallbackStartTime = 0;
     let pauseTime = 0;
     let lastLanePressed: boolean[] = [];
@@ -218,15 +219,23 @@ export function GameScreen() {
       updateParticles(_dt);
       updateJudgmentPopups(_dt);
 
-      // Song end: all notes either hit or missed
-      const judged = getHitCount() + getMissCount();
-      if (judged >= getTotalNotes() && getTotalNotes() > 0) {
-        if (!finished) {
-          finished = true;
+      // Song end: audio finished + grace period for trailing notes
+      const allJudged = (getHitCount() + getMissCount()) >= getTotalNotes() && getTotalNotes() > 0;
+      const audioDone = hasAudioEnded() || (audioFailed && fallbackStartTime > 0);
+      const gracePeriod = audioDone && allJudged;
+
+      if (gracePeriod && !finished) {
+        finished = true;
+        (window as any).__lastResult = buildResult(selectedSong.id, selectedChart.difficulty);
+      }
+
+      // Fade-out transition after song end
+      if (finished) {
+        resultTransition += _dt || 0.016;
+        if (resultTransition >= 1.5) {
           stopEngine();
-          (window as any).__lastResult = buildResult(selectedSong.id, selectedChart.difficulty);
-          // Brief delay so player sees final state
-          setTimeout(() => endGame(), 600);
+          stopAudio();
+          endGame();
         }
       }
     }
@@ -286,6 +295,21 @@ export function GameScreen() {
       renderParticles(ctx);
       renderJudgmentPopups(ctx, CANVAS_W, CANVAS_H);
       renderHUD(ctx, CANVAS_W, CANVAS_H);
+
+      // Fade-out transition
+      if (finished) {
+        const alpha = Math.min(1, resultTransition / 1.0);
+        ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        if (resultTransition > 0.5) {
+          ctx.fillStyle = "#ffffff";
+          ctx.globalAlpha = (resultTransition - 0.5) / 1.0;
+          ctx.font = "bold 28px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText("SONG COMPLETE", CANVAS_W / 2, CANVAS_H / 2);
+          ctx.globalAlpha = 1;
+        }
+      }
 
       // Debug line
       const hasGamepad = navigator.getGamepads()[0] ? "GP:OK" : "GP:none";

@@ -7,6 +7,9 @@ let analyserNode: AnalyserNode | null = null;
 let startOffset = 0;           // audioContext.currentTime when playback started
 let calibrationOffset = 0;     // user-adjustable audio delay (seconds)
 let isPlaying = false;
+let audioDuration = 0;         // loaded buffer duration in seconds
+let audioEnded = false;        // true when sourceNode naturally ends
+let onEndedCallback: (() => void) | null = null;
 
 /** Pre-decode audio file */
 export async function loadAudio(url: string): Promise<AudioBuffer> {
@@ -42,10 +45,20 @@ export function playAudio(buffer: AudioBuffer) {
   if (audioCtx.state === "suspended") {
     audioCtx.resume();
   }
-  startOffset = audioCtx.currentTime + 0.05; // Small scheduling headroom
+  audioDuration = buffer.duration;
+  audioEnded = false;
+  startOffset = audioCtx.currentTime + 0.05;
   sourceNode.start(startOffset);
+  sourceNode.onended = () => {
+    audioEnded = true;
+    if (onEndedCallback) onEndedCallback();
+  };
   isPlaying = true;
 }
+
+export function getAudioDuration(): number { return audioDuration; }
+export function hasAudioEnded(): boolean { return audioEnded; }
+export function onAudioEnded(cb: () => void) { onEndedCallback = cb; }
 
 /** Get current playback position (seconds), accounting for calibration offset */
 export function getPlaybackTime(): number {
