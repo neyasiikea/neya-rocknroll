@@ -11,6 +11,7 @@ import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
 import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
+import { playComboSFX, playMissSFX, vibrateGamepad } from "../game/sfx";
 
 const CANVAS_W = 800;
 const CANVAS_H = 600;
@@ -66,6 +67,16 @@ export function GameScreen() {
         audioBuffer = null;
       });
 
+    function feedback(judgment: string) {
+      if (judgment === "perfect" || judgment === "good") {
+        playComboSFX();
+        vibrateGamepad(0.6, 100); // medium buzz
+      } else {
+        playMissSFX();
+        vibrateGamepad(0.2, 60); // light tap
+      }
+    }
+
     function getGameTime(): number {
       if (paused) return pauseTime;
       if (getIsPlaying()) return getPlaybackTime();
@@ -82,9 +93,11 @@ export function GameScreen() {
       if (gameTime >= hold.holdEndTime - 0.05) {
         pushJudgment("perfect", lane);
         addJudgment("perfect");
+        feedback("perfect");
       } else {
         pushJudgment("miss", lane);
         addJudgment("miss");
+        feedback("miss");
       }
     }
 
@@ -165,6 +178,7 @@ export function GameScreen() {
                 }
                 addJudgment(result.judgment);
                 pushJudgment(result.judgment, lane);
+                feedback(result.judgment);
 
                 const totalWidth = laneCount * LANE_WIDTH;
                 const startX = (CANVAS_W - totalWidth) / 2;
@@ -198,6 +212,7 @@ export function GameScreen() {
       for (let i = 0; i < missedCount; i++) {
         pushJudgment("miss", -1);
         addJudgment("miss");
+        if (i === 0) feedback("miss"); // only SFX once per frame
       }
 
       updateParticles(_dt);
