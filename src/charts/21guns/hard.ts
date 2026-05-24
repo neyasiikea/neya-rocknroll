@@ -1,0 +1,2 @@
+import { generateChart } from "../generator";
+export const chart = generateChart({ songId:"21guns",difficulty:"hard",bpm:80,sections:[{startBeat:0,endBeat:24,type:"intro"},{startBeat:24,endBeat:72,type:"verse"},{startBeat:72,endBeat:120,type:"chorus"},{startBeat:120,endBeat:168,type:"verse"},{startBeat:168,endBeat:216,type:"chorus"},{startBeat:216,endBeat:248,type:"bridge"},{startBeat:248,endBeat:272,type:"outro"}]});

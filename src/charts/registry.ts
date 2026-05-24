@@ -29,6 +29,24 @@ import { chart as twoTigersHard } from "./two-tigers/hard";
 import { chart as whiteRabbitEasy } from "./white-rabbit/easy";
 import { chart as whiteRabbitNormal } from "./white-rabbit/normal";
 import { chart as whiteRabbitHard } from "./white-rabbit/hard";
+import { chart as beyondEasy } from "./beyond/easy";
+import { chart as beyondNormal } from "./beyond/normal";
+import { chart as beyondHard } from "./beyond/hard";
+import { chart as guns21Easy } from "./21guns/easy";
+import { chart as guns21Normal } from "./21guns/normal";
+import { chart as guns21Hard } from "./21guns/hard";
+import { chart as comeAsYouAreEasy } from "./come-as-you-are/easy";
+import { chart as comeAsYouAreNormal } from "./come-as-you-are/normal";
+import { chart as comeAsYouAreHard } from "./come-as-you-are/hard";
+import { chart as beautifulOnesEasy } from "./beautiful-ones/easy";
+import { chart as beautifulOnesNormal } from "./beautiful-ones/normal";
+import { chart as beautifulOnesHard } from "./beautiful-ones/hard";
+import { chart as heyJudeEasy } from "./hey-jude/easy";
+import { chart as heyJudeNormal } from "./hey-jude/normal";
+import { chart as heyJudeHard } from "./hey-jude/hard";
+import { chart as trainToCloudEasy } from "./train-to-cloud/easy";
+import { chart as trainToCloudNormal } from "./train-to-cloud/normal";
+import { chart as trainToCloudHard } from "./train-to-cloud/hard";
 
 const songs: Song[] = [
   {
@@ -100,6 +118,36 @@ const songs: Song[] = [
     artist: "Traditional",
     audioPath: "/songs/小白兔白又白.mp4",
     charts: { easy: whiteRabbitEasy, normal: whiteRabbitNormal, hard: whiteRabbitHard },
+  },
+  {
+    id: "beyond", title: "不再犹豫", artist: "Beyond",
+    audioPath: "/songs/Beyond - 不再犹豫.mp3",
+    charts: { easy: beyondEasy, normal: beyondNormal, hard: beyondHard },
+  },
+  {
+    id: "21guns", title: "21 Guns", artist: "Green Day",
+    audioPath: "/songs/Green Day - 21 Guns.mp3",
+    charts: { easy: guns21Easy, normal: guns21Normal, hard: guns21Hard },
+  },
+  {
+    id: "come-as-you-are", title: "Come As You Are", artist: "Nirvana",
+    audioPath: "/songs/Nirvana - Come As You Are.mp3",
+    charts: { easy: comeAsYouAreEasy, normal: comeAsYouAreNormal, hard: comeAsYouAreHard },
+  },
+  {
+    id: "beautiful-ones", title: "Beautiful Ones", artist: "Suede",
+    audioPath: "/songs/Suede - Beautiful Ones.mp3",
+    charts: { easy: beautifulOnesEasy, normal: beautifulOnesNormal, hard: beautifulOnesHard },
+  },
+  {
+    id: "hey-jude", title: "Hey Jude", artist: "The Beatles",
+    audioPath: "/songs/The Beatles - Hey Jude.mp3",
+    charts: { easy: heyJudeEasy, normal: heyJudeNormal, hard: heyJudeHard },
+  },
+  {
+    id: "train-to-cloud", title: "火车驶向云外，梦安魂于九霄", artist: "刺猬",
+    audioPath: "/songs/刺猬 - 火车驶向云外，梦安魂于九霄.mp3",
+    charts: { easy: trainToCloudEasy, normal: trainToCloudNormal, hard: trainToCloudHard },
   },
 ];
 

@@ -1,0 +1,2 @@
+import { generateChart } from "../generator";
+export const chart = generateChart({ songId:"hey-jude",difficulty:"normal",bpm:74,sections:[{startBeat:0,endBeat:32,type:"intro"},{startBeat:32,endBeat:96,type:"verse"},{startBeat:96,endBeat:160,type:"chorus"},{startBeat:160,endBeat:224,type:"verse"},{startBeat:224,endBeat:288,type:"chorus"},{startBeat:288,endBeat:352,type:"bridge"},{startBeat:352,endBeat:384,type:"outro"}]});
