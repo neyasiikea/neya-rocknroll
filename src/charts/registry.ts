@@ -14,6 +14,15 @@ import { chart as radioGaGaHard } from "./radio-ga-ga/hard";
 import { chart as creepEasy } from "./creep/easy";
 import { chart as creepNormal } from "./creep/normal";
 import { chart as creepHard } from "./creep/hard";
+import { chart as goldenBMEasy } from "./golden-babymonster/easy";
+import { chart as goldenBMNormal } from "./golden-babymonster/normal";
+import { chart as goldenBMHard } from "./golden-babymonster/hard";
+import { chart as howDoneEasy } from "./how-its-done/easy";
+import { chart as howDoneNormal } from "./how-its-done/normal";
+import { chart as howDoneHard } from "./how-its-done/hard";
+import { chart as takedownEasy } from "./takedown/easy";
+import { chart as takedownNormal } from "./takedown/normal";
+import { chart as takedownHard } from "./takedown/hard";
 
 const songs: Song[] = [
   {
@@ -50,6 +59,27 @@ const songs: Song[] = [
     artist: "Radiohead",
     audioPath: "/songs/Radiohead_-_Creep_color_rmx_(mp3.pm).mp3",
     charts: { easy: creepEasy, normal: creepNormal, hard: creepHard },
+  },
+  {
+    id: "golden-babymonster",
+    title: "Golden BabyMonster",
+    artist: "KPop Demon Hunters",
+    audioPath: "/songs/KPop_Demon_Hunters_-_Golden_BabyMonster.mp3",
+    charts: { easy: goldenBMEasy, normal: goldenBMNormal, hard: goldenBMHard },
+  },
+  {
+    id: "how-its-done",
+    title: "How It's Done",
+    artist: "KPop Demon Hunters",
+    audioPath: "/songs/KPop_Demon_Hunters_-_How_It_s_Done.mp3",
+    charts: { easy: howDoneEasy, normal: howDoneNormal, hard: howDoneHard },
+  },
+  {
+    id: "takedown",
+    title: "Takedown",
+    artist: "KPop Demon Hunters",
+    audioPath: "/songs/KPop_Demon_Hunters_-_Takedown.mp3",
+    charts: { easy: takedownEasy, normal: takedownNormal, hard: takedownHard },
   },
 ];
 
