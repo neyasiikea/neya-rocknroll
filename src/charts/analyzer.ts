@@ -185,7 +185,7 @@ export async function analyzeAudio(audioPath: string): Promise<AnalysisResult> {
 
   // Adaptive threshold for peak detection
   const sortedDiffs = [...energyDiffs].sort((a, b) => b - a);
-  const threshold = sortedDiffs[Math.floor(sortedDiffs.length * 0.15)] * 0.6;
+  const threshold = sortedDiffs[Math.floor(sortedDiffs.length * 0.10)] * 0.5;
 
   // Pick peaks
   const onsets: { time: number; energy: number; band: number }[] = [];
@@ -215,10 +215,10 @@ export function chartFromAnalysis(
 ): Chart {
   const laneCount = difficulty === "easy" ? 3 : difficulty === "normal" ? 4 : 5;
   const notes: Note[] = [];
-  const minGap = difficulty === "easy" ? 0.4 : difficulty === "normal" ? 0.25 : 0.15;
+  const minGap = difficulty === "easy" ? 0.35 : difficulty === "normal" ? 0.22 : 0.14;
 
   // Energy thresholds per difficulty
-  const energyThreshold = difficulty === "easy" ? 0.5 : difficulty === "normal" ? 0.35 : 0.2;
+  const energyThreshold = difficulty === "easy" ? 0.2 : difficulty === "normal" ? 0.18 : 0.1;
 
   let lastTime = -minGap;
   let lastLane = 0;
