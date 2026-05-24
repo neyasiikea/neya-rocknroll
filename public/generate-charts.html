@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Chart Generator</title>
+<style>
+body{background:#0a0a0f;color:#fff;font:14px monospace;padding:20px}
+button{padding:8px 16px;margin:3px;cursor:pointer;font:inherit;border:1px solid #444;border-radius:4px;background:#222;color:#fff}
+button:hover{background:#333}
+#log{white-space:pre-wrap;margin-top:10px;max-height:55vh;overflow:auto;background:#111;padding:10px;border-radius:6px;font-size:12px}
+</style></head><body>
+<h1>Audio Chart Generator</h1>
+<p>Click to analyze each song and download generated charts. Replace files in <code>src/charts/&lt;song&gt;/</code>.</p>
+<div id="buttons"></div>
+<pre id="log"></pre>
+<script>
+const songs = [
+  {id:"gurenge",path:"/songs/LiSA_-_Gurenge_(mp3.pm).mp3",title:"Gurenge"},
+  {id:"cruel-angel",path:"/songs/_A_Cruel_Angel_s_Thesis_Eurobeat_Remix.mp3",title:"Cruel Angel Eurobeat"},
+  {id:"zhongnanhai",path:"/songs/Carsick Cars - 中南海.mp3",title:"中南海"},
+  {id:"radio-ga-ga",path:"/songs/Queen - Radio Ga Ga.mp3",title:"Radio Ga Ga"},
+  {id:"creep",path:"/songs/Radiohead_-_Creep_color_rmx_(mp3.pm).mp3",title:"Creep"},
+  {id:"golden-babymonster",path:"/songs/KPop_Demon_Hunters_-_Golden_BabyMonster.mp3",title:"Golden BabyMonster"},
+  {id:"how-its-done",path:"/songs/KPop_Demon_Hunters_-_How_It_s_Done.mp3",title:"How It's Done"},
+  {id:"takedown",path:"/songs/KPop_Demon_Hunters_-_Takedown.mp3",title:"Takedown"},
+  {id:"two-tigers",path:"/songs/两只老虎.mp3",title:"两只老虎"},
+  {id:"white-rabbit",path:"/songs/小白兔白又白.mp4",title:"小白兔白又白"},
+  {id:"beyond",path:"/songs/Beyond - 不再犹豫.mp3",title:"不再犹豫"},
+  {id:"21guns",path:"/songs/Green Day - 21 Guns.mp3",title:"21 Guns"},
+  {id:"come-as-you-are",path:"/songs/Nirvana - Come As You Are.mp3",title:"Come As You Are"},
+  {id:"beautiful-ones",path:"/songs/Suede - Beautiful Ones.mp3",title:"Beautiful Ones"},
+  {id:"hey-jude",path:"/songs/The Beatles - Hey Jude.mp3",title:"Hey Jude"},
+  {id:"train-to-cloud",path:"/songs/刺猬 - 火车驶向云外，梦安魂于九霄.mp3",title:"火车驶向云外"},
+  {id:"buwanneng",path:"/songs/万能青年旅店 - 不万能的喜剧.mp3",title:"不万能的喜剧"},
+  {id:"qinhuangdao",path:"/songs/万能青年旅店 - 秦皇岛.mp3",title:"秦皇岛"},
+];
+
+const DIFFS = ["easy","normal","hard"];
+const LANES = {easy:3,normal:4,hard:5};
+
+function log(msg){ const el=document.getElementById("log"); el.textContent+=msg+"\n"; el.scrollTop=el.scrollHeight; }
+
+// === Audio Analysis Engine (inlined) ===
+
+async function analyzeAudio(path){
+  log(`  Fetching audio...`);
+  const resp = await fetch(path);
+  const buf = await resp.arrayBuffer();
+  const ctx = new AudioContext();
+  const audio = await ctx.decodeAudioData(buf);
+  ctx.close();
+  const sr = audio.sampleRate;
+  const data = audio.getChannelData(0);
+  const dur = audio.duration;
+  const frameSize = 2048, hop = 512;
+
+  // Energy frames
+  const frames = [];
+  const nf = Math.floor((data.length - frameSize) / hop);
+  for(let i=0;i<nf;i++){
+    const s = i*hop; let e=0;
+    for(let j=0;j<frameSize;j++) e+=data[s+j]*data[s+j];
+    frames.push({time:(s+frameSize/2)/sr, energy:Math.sqrt(e/frameSize)});
+  }
+
+  // BPM via autocorrelation
+  let bpm=120;
+  const es = frames.map(f=>f.energy);
+  const maxLag=Math.min(Math.floor(2*sr/hop),es.length/2);
+  let bestLag=Math.floor(0.5*sr/hop), bestVal=0;
+  for(let lag=Math.floor(0.3*sr/hop);lag<maxLag;lag++){
+    let c=0; const n=es.length-lag;
+    for(let i=0;i<n;i++)c+=es[i]*es[i+lag];
+    c/=n;
+    if(c>bestVal){bestVal=c;bestLag=lag;}
+  }
+  bpm=Math.round(60/(bestLag*hop/sr));
+
+  // Onset detection (energy diff)
+  const diffs=[];
+  for(let i=1;i<frames.length;i++) diffs.push(Math.max(0,frames[i].energy-frames[i-1].energy));
+  const sorted=[...diffs].sort((a,b)=>b-a);
+  const thr=sorted[Math.floor(sorted.length*0.12)]*0.5;
+
+  const onsets=[];
+  for(let i=2;i<diffs.length-2;i++){
+    if(diffs[i]>thr && diffs[i]>diffs[i-1] && diffs[i]>diffs[i-2] && diffs[i]>diffs[i+1] && diffs[i]>diffs[i+2]){
+      onsets.push({time:frames[i+1].time, energy:frames[i+1].energy});
+    }
+  }
+
+  // Section detection
+  const smooth=[];
+  const w=12;
+  for(let i=0;i<frames.length;i++){
+    let s=0,c=0;
+    for(let j=Math.max(0,i-w);j<Math.min(frames.length,i+w);j++){s+=frames[j].energy;c++;}
+    smooth.push(s/c);
+  }
+  const avgE=smooth.reduce((a,b)=>a+b,0)/smooth.length;
+  const sections=[];
+  let ss=0, ce=smooth[0];
+  for(let i=1;i<smooth.length;i++){
+    const hi=smooth[i]>avgE*1.2, whi=ce>avgE*1.2;
+    if(hi!==whi){sections.push({start:frames[ss]?.time??0,end:frames[i-1]?.time??0,energy:ce/avgE});ss=i;ce=smooth[i];}
+  }
+  sections.push({start:frames[ss]?.time??0,end:dur,energy:ce/avgE});
+
+  log(`  BPM:${bpm} onsets:${onsets.length} sections:${sections.length}`);
+  return {onsets,sections,bpm};
+}
+
+function genChart(songId,diff,analysis){
+  const lanes=LANES[diff];
+  const notes=[];
+  const minGap={easy:0.45,normal:0.28,hard:0.16}[diff];
+  const eThr={easy:0.55,normal:0.35,hard:0.18}[diff];
+  let lastTime=-minGap, lastLane=0;
+
+  for(const o of analysis.onsets){
+    if(o.time-lastTime<minGap||o.energy<eThr) continue;
+    const sec=analysis.sections.find(s=>o.time>=s.start&&o.time<s.end);
+    const se=sec?.energy??1;
+    const hi=se>1.2, lo=se<0.7;
+
+    let lane;
+    if(hi&&lanes>=4){const r=Math.random();lane=r<0.3?0:r<0.55?1:r<0.75?2:lanes>=5&&r<0.9?3:Math.min(lanes-1,3+Math.floor(Math.random()*2));}
+    else if(lo||diff==="easy"){lane=Math.random()<0.6?0:Math.random()<0.7?1:2;}
+    else{lane=Math.floor(Math.random()*Math.min(lanes,3+Math.floor(Math.random()*2)));}
+    if(lane===lastLane&&lanes>2)lane=(lane+1+Math.floor(Math.random()*(lanes-1)))%lanes;
+
+    notes.push({time:o.time,lane});
+    lastTime=o.time;lastLane=lane;
+
+    if(hi&&diff!=="easy"&&Math.random()<0.25&&lanes>=3){
+      const cl=(lane+2+Math.floor(Math.random()*(lanes-2)))%lanes;
+      if(cl!==lane)notes.push({time:o.time,lane:cl});
+    }
+    if(hi&&diff!=="easy"&&Math.random()<0.1){
+      const ln=notes[notes.length-1];
+      if(ln&&!ln.hold)ln.hold=Math.min(0.7,60/analysis.bpm*2);
+    }
+  }
+  notes.sort((a,b)=>a.time-b.time);
+  return {songId,difficulty:diff,bpm:analysis.bpm,lanes,notes};
+}
+
+// === UI ===
+const btns=document.getElementById("buttons");
+songs.forEach(s=>{
+  const row=document.createElement("span");
+  row.innerHTML=`<button onclick="genOne('${s.id}','${s.path}','${s.title}')">${s.title}</button>`;
+  btns.appendChild(row);
+});
+
+window.genOne=async function(id,path,title){
+  log(`\n=== ${title} ===`);
+  try{
+    const a=await analyzeAudio(path);
+    for(const d of DIFFS){
+      const chart=genChart(id,d,a);
+      const json=JSON.stringify(chart,null,2);
+      const content=`import type { Chart } from "../../types";\n\nexport const chart: Chart = ${json};`;
+      const blob=new Blob([content],{type:"text/typescript"});
+      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${id}-${d}.ts`;a.click();
+      log(`  ${d.toUpperCase()}: ${chart.notes.length} notes ✓`);
+    }
+  }catch(e){log(`  ERROR: ${e.message}`);}
+};
+
+log("Ready. Click a song to generate charts. Replace src/charts/<song>/easy.ts etc. with downloaded files.");
+</script></body></html>
