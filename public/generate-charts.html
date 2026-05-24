@@ -160,10 +160,52 @@ window.genOne=async function(id,path,title){
       const content=`import type { Chart } from "../../types";\n\nexport const chart: Chart = ${json};`;
       const blob=new Blob([content],{type:"text/typescript"});
       const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`${id}-${d}.ts`;link.click();
+      await new Promise(r=>setTimeout(r,200)); // delay between downloads
       log(`  ${d.toUpperCase()}: ${chart.notes.length} notes ✓`);
     }
   }catch(e){log(`  ERROR: ${e.message}`);}
 };
 
-log("Ready. Click a song to generate charts. Replace src/charts/<song>/easy.ts etc. with downloaded files.");
+window.genAll=async function(){
+  log("=== GENERATING ALL 18 SONGS ===\nThis will take 2-3 minutes...");
+  const allCharts={};
+  for(let i=0;i<songs.length;i++){
+    const s=songs[i];
+    log(`[${i+1}/${songs.length}] Analyzing ${s.title}...`);
+    try{
+      const analysis=await analyzeAudio(s.path);
+      allCharts[s.id]={title:s.title,charts:{}};
+      for(const d of DIFFS){
+        const chart=genChart(s.id,d,analysis);
+        allCharts[s.id].charts[d]=chart;
+      }
+      log(`  ✓ ${analysis.onsets.length} onsets, BPM ${analysis.bpm}`);
+    }catch(e){log(`  ERROR: ${e.message}`);}
+  }
+
+  // Build Node.js writer script
+  log("\nBuilding writer script...");
+  let script=`// Auto-generated chart writer — run with: node write-charts.js
+const fs=require("fs");
+const path=require("path");
+const base="src/charts";
+const charts=${JSON.stringify(allCharts,null,2)};
+for(const[songId,data]of Object.entries(charts)){
+  const dir=path.join(base,songId);
+  fs.mkdirSync(dir,{recursive:true});
+  for(const[diff,chart]of Object.entries(data.charts)){
+    const content="import type { Chart } from \\"../../types\\";\\n\\nexport const chart: Chart = "+JSON.stringify(chart)+";";
+    fs.writeFileSync(path.join(dir,diff+".ts"),content);
+    console.log("Wrote "+songId+"/"+diff+".ts ("+chart.notes.length+" notes)");
+  }
+}
+console.log("Done! "+Object.keys(charts).length+" songs written.");`;
+
+  const blob=new Blob([script],{type:"text/javascript"});
+  const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="write-charts.js";link.click();
+  log("\n=== DONE ===\nDownloaded write-charts.js. Run: node write-charts.js");
+  log("This will write ALL chart files directly to src/charts/<song>/");
+};
+
+log("Ready. Click 'Generate ALL' to process all songs → downloads write-charts.js → run 'node write-charts.js'.");
 </script></body></html>
