@@ -240,7 +240,10 @@ export function GameScreen() {
       const audioDone = hasAudioEnded() || (audioFailed && fallbackStartTime > 0);
       const timeUp = gameTime >= effectiveDuration;
       // Time cap forces end regardless of remaining notes
-      const shouldEnd = timeUp || (audioDone && allJudged);
+      // Also end when chart is done (all notes judged, past last note) regardless of audio
+      const lastNoteTime = selectedChart.notes.length > 0 ? selectedChart.notes[selectedChart.notes.length - 1].time : 0;
+      const pastLastNote = allJudged && gameTime > lastNoteTime + 2;
+      const shouldEnd = timeUp || (audioDone && allJudged) || pastLastNote;
 
       if (shouldEnd && !finished) {
         finished = true;
