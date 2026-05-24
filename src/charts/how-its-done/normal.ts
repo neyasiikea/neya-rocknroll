@@ -1,14 +1,3 @@
-import { generateChart } from "../generator";
-export const chart = generateChart({
-  songId: "how-its-done", difficulty: "normal", bpm: 120,
-  sections: [
-    { startBeat: 0, endBeat: 32, type: "intro" },
-    { startBeat: 32, endBeat: 96, type: "verse" },
-    { startBeat: 96, endBeat: 160, type: "chorus" },
-    { startBeat: 160, endBeat: 224, type: "verse" },
-    { startBeat: 224, endBeat: 256, type: "prechorus" },
-    { startBeat: 256, endBeat: 320, type: "chorus" },
-    { startBeat: 320, endBeat: 352, type: "bridge" },
-    { startBeat: 352, endBeat: 384, type: "outro" },
-  ],
-});
+import type { Chart } from "../../types";
+
+export const chart: Chart = {"songId":"how-its-done","difficulty":"normal","bpm":40,"lanes":4,"notes":[{"time":0.128,"lane":1},{"time":6.0906666666666665,"lane":0},{"time":31.669333333333334,"lane":3},{"time":125.216,"lane":2},{"time":152.61866666666666,"lane":3},{"time":154.304,"lane":0},{"time":154.304,"lane":2},{"time":155.63733333333334,"lane":2,"hold":0.7},{"time":156.23466666666667,"lane":1},{"time":156.23466666666667,"lane":3}]};

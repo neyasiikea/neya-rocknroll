@@ -1,15 +1,3 @@
-import { generateChart } from "../generator";
-export const chart = generateChart({
-  songId: "golden-babymonster", difficulty: "easy", bpm: 128,
-  sections: [
-    { startBeat: 0, endBeat: 32, type: "intro" },
-    { startBeat: 32, endBeat: 96, type: "verse" },
-    { startBeat: 96, endBeat: 128, type: "prechorus" },
-    { startBeat: 128, endBeat: 208, type: "chorus" },
-    { startBeat: 208, endBeat: 272, type: "verse" },
-    { startBeat: 272, endBeat: 304, type: "prechorus" },
-    { startBeat: 304, endBeat: 384, type: "chorus" },
-    { startBeat: 384, endBeat: 416, type: "bridge" },
-    { startBeat: 416, endBeat: 448, type: "outro" },
-  ],
-});
+import type { Chart } from "../../types";
+
+export const chart: Chart = {"songId":"golden-babymonster","difficulty":"easy","bpm":125,"lanes":3,"notes":[{"time":33.87733333333333,"lane":1},{"time":35.06133333333333,"lane":0},{"time":37.216,"lane":2},{"time":37.64266666666666,"lane":0},{"time":46.77333333333333,"lane":1},{"time":51.82933333333333,"lane":0},{"time":56.29866666666667,"lane":2},{"time":62.848,"lane":0},{"time":63.434666666666665,"lane":1},{"time":63.808,"lane":0},{"time":64.256,"lane":1},{"time":64.61866666666667,"lane":0},{"time":65.01333333333334,"lane":2},{"time":65.77066666666667,"lane":1},{"time":66.272,"lane":0},{"time":66.752,"lane":2},{"time":67.22133333333333,"lane":1},{"time":68.224,"lane":0},{"time":69.14133333333334,"lane":1},{"time":69.68533333333333,"lane":2},{"time":70.05866666666667,"lane":0},{"time":70.624,"lane":2},{"time":71.69066666666667,"lane":1},{"time":72.72533333333334,"lane":0},{"time":73.6,"lane":2},{"time":74.592,"lane":1},{"time":76.52266666666667,"lane":2},{"time":77.58933333333333,"lane":0},{"time":77.97333333333333,"lane":2},{"time":78.50666666666666,"lane":0},{"time":78.98666666666666,"lane":1},{"time":79.56266666666667,"lane":0},{"time":80.02133333333333,"lane":1},{"time":81.376,"lane":0},{"time":83.65866666666666,"lane":2},{"time":84.24533333333333,"lane":0},{"time":85.78133333333334,"lane":1},{"time":86.19733333333333,"lane":0},{"time":87.86133333333333,"lane":1},{"time":89.29066666666667,"lane":2},{"time":90.66666666666667,"lane":0},{"time":91.33866666666667,"lane":2},{"time":123.616,"lane":0},{"time":125.856,"lane":1},{"time":129.184,"lane":0},{"time":129.77066666666667,"lane":1},{"time":130.144,"lane":0},{"time":131.136,"lane":2},{"time":131.63733333333334,"lane":0},{"time":133.07733333333334,"lane":1},{"time":133.504,"lane":0},{"time":135.01866666666666,"lane":1},{"time":135.392,"lane":0},{"time":137.056,"lane":1},{"time":137.97333333333333,"lane":0},{"time":138.95466666666667,"lane":2},{"time":139.43466666666666,"lane":0},{"time":140.90666666666667,"lane":1},{"time":142.848,"lane":0},{"time":143.92533333333333,"lane":2},{"time":144.27733333333333,"lane":0},{"time":157.97333333333333,"lane":1},{"time":159.904,"lane":2},{"time":160.40533333333335,"lane":0},{"time":160.896,"lane":2},{"time":161.408,"lane":0},{"time":161.83466666666666,"lane":2},{"time":162.56,"lane":0},{"time":163.008,"lane":1},{"time":164.88533333333334,"lane":0},{"time":165.30133333333333,"lane":1},{"time":165.696,"lane":0},{"time":167.73333333333332,"lane":2},{"time":168.68266666666668,"lane":0},{"time":169.312,"lane":1},{"time":169.73866666666666,"lane":0},{"time":172.72533333333334,"lane":1},{"time":173.19466666666668,"lane":0},{"time":173.58933333333334,"lane":2},{"time":174.00533333333334,"lane":0},{"time":174.48533333333333,"lane":1},{"time":174.90133333333333,"lane":0},{"time":182.41066666666666,"lane":1},{"time":182.76266666666666,"lane":2},{"time":183.136,"lane":0}]};
