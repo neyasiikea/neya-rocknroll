@@ -1,22 +1,14 @@
-import type { Chart } from "../../types";
-
-export const chart: Chart = {
-  songId: "cruel-angel",
-  difficulty: "normal",
-  bpm: 150,
-  lanes: 4,
-  notes: [
-    { time: 1.0, lane: 0 }, { time: 1.25, lane: 2 }, { time: 1.5, lane: 1 }, { time: 1.75, lane: 3 },
-    { time: 2.0, lane: 2 }, { time: 2.25, lane: 0 }, { time: 2.5, lane: 1 }, { time: 2.75, lane: 3 },
-    { time: 3.0, lane: 0 }, { time: 3.25, lane: 2 }, { time: 3.5, lane: 1 }, { time: 3.75, lane: 3 },
-    { time: 4.0, lane: 0 }, { time: 4.25, lane: 2 }, { time: 4.5, lane: 1 }, { time: 4.75, lane: 3 },
-    { time: 5.0, lane: 2 }, { time: 5.25, lane: 0 }, { time: 5.5, lane: 1 }, { time: 5.75, lane: 3 },
-    { time: 6.0, lane: 0 }, { time: 6.25, lane: 2 }, { time: 6.5, lane: 1 }, { time: 6.75, lane: 3 },
-    { time: 7.0, lane: 0 }, { time: 7.25, lane: 2 }, { time: 7.5, lane: 1 }, { time: 7.75, lane: 3 },
-    { time: 8.0, lane: 2 }, { time: 8.25, lane: 0 }, { time: 8.5, lane: 1 }, { time: 8.75, lane: 3 },
-    { time: 9.0, lane: 0 }, { time: 9.25, lane: 2 }, { time: 9.5, lane: 1 }, { time: 9.75, lane: 3 },
-    { time: 10.0, lane: 2 }, { time: 10.25, lane: 0 }, { time: 10.5, lane: 1 }, { time: 10.75, lane: 3 },
-    { time: 11.0, lane: 0 }, { time: 11.25, lane: 2 }, { time: 11.5, lane: 1 }, { time: 11.75, lane: 3 },
-    { time: 12.0, lane: 2 }, { time: 12.25, lane: 0 }, { time: 12.5, lane: 1 }, { time: 12.75, lane: 3 },
+import { generateChart } from "../generator";
+export const chart = generateChart({
+  songId: "cruel-angel", difficulty: "normal", bpm: 155,
+  sections: [
+    { startBeat: 0, endBeat: 32, type: "intro" },
+    { startBeat: 32, endBeat: 96, type: "verse" },
+    { startBeat: 96, endBeat: 128, type: "prechorus" },
+    { startBeat: 128, endBeat: 224, type: "chorus" },
+    { startBeat: 224, endBeat: 288, type: "verse" },
+    { startBeat: 288, endBeat: 320, type: "prechorus" },
+    { startBeat: 320, endBeat: 416, type: "chorus" },
+    { startBeat: 416, endBeat: 448, type: "outro" },
   ],
-};
+});
