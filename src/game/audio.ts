@@ -112,6 +112,10 @@ export function getCalibration(): number {
   return calibrationOffset * 1000;
 }
 
+export function setMainGain(value: number) {
+  if (gainNode) gainNode.gain.value = Math.max(0, Math.min(1, value));
+}
+
 export function getIsPlaying() {
   return isPlaying;
 }

@@ -2,30 +2,28 @@
 import { useEffect, useRef } from "react";
 import { useGameState } from "./GameContext";
 import { startEngine, stopEngine } from "../game/engine";
-import { loadAudio, playAudio, stopAudio, getPlaybackTime, getBassIntensity, getIsPlaying, suspendAudio, resumeAudio, getCalibration, setCalibration, hasAudioEnded } from "../game/audio";
+import { loadAudio, playAudio, stopAudio, getPlaybackTime, getBassIntensity, getIsPlaying, suspendAudio, resumeAudio, getCalibration, setCalibration, hasAudioEnded, setMainGain } from "../game/audio";
 import { pollInput, resetInputState } from "../game/input";
 import { loadChart, getTimingWindow, getJudgableNotes, markNoteJudged, findNoteIndex, autoMissPastNotes, getTotalNotes, getHitCount, getMissCount, getRuntimeNotes } from "../game/chart";
 import { judgeHit } from "../game/judge";
-import { resetScore, addJudgment, buildResult, getScore, getCombo, getAccuracy, getGrade, getStats } from "../game/score";
+import { resetScore, addJudgment, buildResult, getCombo } from "../game/score";
 import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
 import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
-import { playComboSFX, playMissSFX, vibrateGamepad } from "../game/sfx";
+import { playMissSFX, playComboMilestoneSFX, vibrateGamepad } from "../game/sfx";
 
 const CANVAS_W = 800;
 const CANVAS_H = 600;
 const HIT_LINE_Y = 520;
 const LANE_WIDTH = 80;
 const NOTE_HEIGHT = 20;
+const MAX_SONG_DURATION = 210; // 3:30 cap
+const FADE_OUT_DURATION = 5;   // last 5s fade
+const COUNTDOWN_DURATION = 3;  // 3-2-1-GO
 
 function getNoteSpeed(difficulty: string): number {
-  switch (difficulty) {
-    case "easy": return 220;
-    case "normal": return 320;
-    case "hard": return 400;
-    default: return 300;
-  }
+  switch (difficulty) { case "easy": return 220; case "normal": return 320; case "hard": return 400; default: return 300; }
 }
 
 export function GameScreen() {
@@ -40,43 +38,39 @@ export function GameScreen() {
     const laneCount = selectedChart.lanes;
     const noteSpeed = getNoteSpeed(selectedChart.difficulty);
     let audioBuffer: AudioBuffer | null = null;
-    let started = false;
+    let started = false;       // countdown complete, game running
+    let countdownPhase = 0;    // 0=loading, 1-3=countdown numbers, 4=GO
+    let countdownTimer = 0;
     let paused = false;
     let finished = false;
-    let resultTransition = 0; // fade-out timer
+    let resultTransition = 0;
     let fallbackStartTime = 0;
+    let audioStartTime = 0;    // audioContext.currentTime when audio actually starts
     let pauseTime = 0;
     let lastLanePressed: boolean[] = [];
-    let pauseThrottle = 0; // prevent rapid pause toggling
-    /** Track which note indices are being actively held (for render pass-through) */
+    let pauseThrottle = 0;
+    let lastCombo = 0;
+    let effectiveDuration = MAX_SONG_DURATION; // actual song cap
     const activeHolds = new Map<number, { noteIndex: number; holdEndTime: number; lastTick: number }>();
 
-    // Init subsystems
     resetScore();
     clearParticles();
     loadChart(selectedChart);
-    initHighway({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed: noteSpeed });
-    initNotes({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed: noteSpeed, noteHeight: NOTE_HEIGHT });
+    initHighway({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed });
+    initNotes({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed, noteHeight: NOTE_HEIGHT });
     resetInputState();
 
     let audioFailed = false;
     loadAudio(selectedSong.audioPath)
-      .then(buf => { audioBuffer = buf; })
+      .then(buf => {
+        audioBuffer = buf;
+        effectiveDuration = Math.min(buf.duration, MAX_SONG_DURATION);
+      })
       .catch(err => {
         console.error("Audio load failed:", selectedSong.audioPath, err);
         audioFailed = true;
         audioBuffer = null;
       });
-
-    function feedback(judgment: string) {
-      if (judgment === "perfect" || judgment === "good") {
-        playComboSFX();
-        vibrateGamepad(0.6, 100); // medium buzz
-      } else {
-        playMissSFX();
-        vibrateGamepad(0.2, 60); // light tap
-      }
-    }
 
     function getGameTime(): number {
       if (paused) return pauseTime;
@@ -89,62 +83,78 @@ export function GameScreen() {
       const hold = activeHolds.get(lane);
       if (!hold) return;
       activeHolds.delete(lane);
-      // Mark the hold note as judged so it counts toward song completion
       markNoteJudged(hold.noteIndex);
       if (gameTime >= hold.holdEndTime - 0.05) {
         pushJudgment("perfect", lane);
         addJudgment("perfect");
-        feedback("perfect");
       } else {
         pushJudgment("miss", lane);
         addJudgment("miss");
-        feedback("miss");
+        playMissSFX();
+        vibrateGamepad(0.2, 60);
       }
     }
 
     function update(_dt: number) {
       const input = pollInput();
 
-      // Auto-start when audio loaded or failed
-      if (!getIsPlaying() && !started) {
-        if (audioBuffer) { playAudio(audioBuffer); started = true; }
-        else if (audioFailed) { started = true; fallbackStartTime = performance.now() / 1000; }
+      // ── Phase: Loading → Countdown ──
+      if (!started && countdownPhase === 0) {
+        if (audioBuffer || audioFailed) {
+          countdownPhase = 1;
+          countdownTimer = 0;
+        }
       }
 
-      // Pause / resume (with throttle to prevent flicker)
-      if (started && input.startJustPressed && !finished && pauseThrottle <= 0) {
-        if (paused) {
-          paused = false;
-          resumeAudio();
-        } else {
-          paused = true;
-          pauseTime = getGameTime();
-          suspendAudio();
+      // ── Countdown (3-2-1-GO) ──
+      if (countdownPhase > 0 && countdownPhase <= 3) {
+        countdownTimer += _dt || 0.016;
+        if (countdownTimer >= 1.0) {
+          countdownTimer = 0;
+          if (countdownPhase === 3) {
+            // GO!
+            countdownPhase = 4;
+            countdownTimer = 0;
+          } else {
+            countdownPhase++;
+          }
         }
-        pauseThrottle = 0.3; // 300ms cooldown
+        return; // block all input during countdown
+      }
+
+      if (countdownPhase === 4) {
+        countdownTimer += _dt || 0.016;
+        if (countdownTimer >= 0.5) {
+          // Start game
+          if (audioBuffer) {
+            playAudio(audioBuffer);
+            audioStartTime = getPlaybackTime();
+          } else {
+            fallbackStartTime = performance.now() / 1000;
+          }
+          started = true;
+          countdownPhase = 0;
+        }
+        return;
+      }
+
+      // ── Pause ──
+      if (started && input.startJustPressed && !finished && pauseThrottle <= 0) {
+        paused = !paused;
+        if (paused) { pauseTime = getGameTime(); suspendAudio(); }
+        else { resumeAudio(); }
+        pauseThrottle = 0.3;
         return;
       }
       pauseThrottle = Math.max(0, pauseThrottle - (_dt || 0.016));
 
-      // Calibration adjustment when paused (Left/Right changes offset)
       if (paused) {
         if (input.leftJustPressed) setCalibration(getCalibration() - 5);
         if (input.rightJustPressed) setCalibration(getCalibration() + 5);
       }
 
-      // Exit to menu (when paused or before start)
       if (input.backJustPressed) {
-        if (paused) {
-          stopAudio();
-          stopEngine();
-          navigateTo("menu");
-          return;
-        }
-        if (!started) {
-          stopEngine();
-          navigateTo("menu");
-          return;
-        }
+        if (paused || !started) { stopAudio(); stopEngine(); navigateTo("menu"); return; }
       }
 
       if (!started || paused) return;
@@ -153,7 +163,7 @@ export function GameScreen() {
       const window = getTimingWindow();
       lastLanePressed = input.lanePressed;
 
-      // Handle lane presses (tap + hold start)
+      // ── Lane presses ──
       for (let lane = 0; lane < laneCount; lane++) {
         if (input.laneJustPressed[lane]) {
           const notes = getJudgableNotes(gameTime, window.good);
@@ -165,71 +175,73 @@ export function GameScreen() {
               if (dist < bestDist) { bestDist = dist; bestMatch = note; }
             }
           }
-
           if (bestMatch) {
             const idx = findNoteIndex(bestMatch.time, bestMatch.lane, window.good / 1000);
             if (idx >= 0) {
               const result = judgeHit(bestMatch.time, gameTime, window);
               if (result) {
-                const isHold = bestMatch.holdDuration > 0;
-                if (isHold) {
+                if (bestMatch.holdDuration > 0) {
                   activeHolds.set(lane, { noteIndex: idx, holdEndTime: bestMatch.holdEndTime, lastTick: gameTime });
                 } else {
                   markNoteJudged(idx);
                 }
                 addJudgment(result.judgment);
                 pushJudgment(result.judgment, lane);
-                feedback(result.judgment);
-
-                const totalWidth = laneCount * LANE_WIDTH;
-                const startX = (CANVAS_W - totalWidth) / 2;
-                spawnHitEffect(startX + lane * LANE_WIDTH + LANE_WIDTH / 2, HIT_LINE_Y, lane, result.judgment);
+                // No SFX for regular hits — only visual feedback
+                const tw = laneCount * LANE_WIDTH;
+                const sx = (CANVAS_W - tw) / 2;
+                spawnHitEffect(sx + lane * LANE_WIDTH + LANE_WIDTH / 2, HIT_LINE_Y, lane, result.judgment);
               }
             }
           }
         }
-
-        // Handle hold release
         if (input.laneJustReleased[lane] && activeHolds.has(lane)) {
           completeHold(lane, gameTime);
         }
       }
 
-      // Hold note ticks every 250ms of sustained hold
+      // ── Hold ticks ──
       for (const [lane, hold] of activeHolds) {
         if (input.lanePressed[lane] && gameTime - hold.lastTick >= 0.25) {
           hold.lastTick = gameTime;
           pushJudgment("perfect", lane);
         }
-        // Auto-complete hold that reached its end time
-        if (gameTime >= hold.holdEndTime) {
-          completeHold(lane, gameTime);
-        }
+        if (gameTime >= hold.holdEndTime) completeHold(lane, gameTime);
       }
 
-      // Auto-miss expired notes (skip actively-held hold notes)
+      // ── Auto-miss ──
       const heldIndices = new Set(Array.from(activeHolds.values()).map(h => h.noteIndex));
       const missedCount = autoMissPastNotes(gameTime, window.good, heldIndices);
       for (let i = 0; i < missedCount; i++) {
         pushJudgment("miss", -1);
         addJudgment("miss");
-        if (i === 0) feedback("miss"); // only SFX once per frame
+        if (i === 0) { playMissSFX(); vibrateGamepad(0.2, 60); }
       }
 
       updateParticles(_dt);
       updateJudgmentPopups(_dt);
 
-      // Song end: audio finished + grace period for trailing notes
+      // ── Combo milestone SFX ──
+      const combo = getCombo();
+      if (combo > lastCombo) {
+        if ((lastCombo < 10 && combo >= 10) || (lastCombo < 30 && combo >= 30) || (lastCombo < 50 && combo >= 50)) {
+          playComboMilestoneSFX(combo);
+          vibrateGamepad(0.7, 120);
+        }
+      }
+      lastCombo = combo;
+
+      // ── Song end: audio finished or time cap ──
       const allJudged = (getHitCount() + getMissCount()) >= getTotalNotes() && getTotalNotes() > 0;
       const audioDone = hasAudioEnded() || (audioFailed && fallbackStartTime > 0);
-      const gracePeriod = audioDone && allJudged;
+      const timeUp = gameTime >= effectiveDuration;
+      const shouldEnd = (audioDone || timeUp) && allJudged;
 
-      if (gracePeriod && !finished) {
+      if (shouldEnd && !finished) {
         finished = true;
         (window as any).__lastResult = buildResult(selectedSong.id, selectedChart.difficulty);
       }
 
-      // Fade-out transition after song end
       if (finished) {
         resultTransition += _dt || 0.016;
         if (resultTransition >= 1.5) {
@@ -238,14 +250,22 @@ export function GameScreen() {
           endGame();
         }
       }
+
+      // ── Audio gain fade-out in last 5 seconds ──
+      if (started && !finished && gameTime >= effectiveDuration - FADE_OUT_DURATION) {
+        const remaining = Math.max(0, effectiveDuration - gameTime);
+        const vol = (remaining / FADE_OUT_DURATION) * 0.8;
+        setMainGain(vol);
+        // Auto-miss all remaining notes in final 5s
+        const forceMiss = autoMissPastNotes(gameTime, 999, heldIndices);
+        for (let i = 0; i < forceMiss; i++) addJudgment("miss");
+      }
     }
 
     function render(_dt: number) {
       if (!ctx) return;
       const bass = getBassIntensity();
       const gameTime = getGameTime();
-
-      // Build set of active hold keys (time_lane) for the renderer
       const rtNotes = getRuntimeNotes();
       const activeHoldKeys = new Set<string>();
       for (const hold of activeHolds.values()) {
@@ -255,9 +275,26 @@ export function GameScreen() {
 
       renderHighway(ctx, bass, lastLanePressed);
 
+      // ── Countdown display ──
+      if (countdownPhase >= 1 && countdownPhase <= 3) {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 80px monospace";
+        ctx.textAlign = "center";
+        const num = 4 - countdownPhase;
+        ctx.fillText(`${num}`, CANVAS_W / 2, CANVAS_H / 2);
+        return;
+      }
+      if (countdownPhase === 4) {
+        ctx.fillStyle = "#00FF88";
+        ctx.font = "bold 60px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("GO!", CANVAS_W / 2, CANVAS_H / 2);
+        return;
+      }
+
       if (!started) {
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 24px monospace";
+        ctx.font = "bold 20px monospace";
         ctx.textAlign = "center";
         ctx.fillText("LOADING...", CANVAS_W / 2, CANVAS_H / 2);
         return;
@@ -270,40 +307,32 @@ export function GameScreen() {
         ctx.font = "bold 36px monospace";
         ctx.textAlign = "center";
         ctx.fillText("PAUSED", CANVAS_W / 2, CANVAS_H / 2 - 20);
-        ctx.font = "14px monospace";
-        ctx.fillStyle = "#888";
-        ctx.fillText("START: Resume  |  B: Quit to Menu", CANVAS_W / 2, CANVAS_H / 2 + 30);
-        // Still render highway behind
+        ctx.font = "14px monospace"; ctx.fillStyle = "#888";
+        ctx.fillText("START: Resume  |  B: Quit  |  ◄► Calibrate", CANVAS_W / 2, CANVAS_H / 2 + 30);
         return;
       }
 
-      // Build visible notes
       const lookAhead = (CANVAS_H / noteSpeed) + 1;
       const allRuntimeNotes = getJudgableNotes(gameTime, lookAhead * 1000);
-      // Also include actively held notes (not in getJudgableNotes because !hit fails)
       const holdIndices = new Set(Array.from(activeHolds.values()).map(h => h.noteIndex));
-      const holdNotesInProgress = rtNotes.filter((_, i) => holdIndices.has(i) && !allRuntimeNotes.some(a => a.time === rtNotes[i].time && a.lane === rtNotes[i].lane));
+      const holdNotesInProgress = rtNotes.filter((_, i) =>
+        holdIndices.has(i) && !allRuntimeNotes.some(a => a.time === rtNotes[i].time && a.lane === rtNotes[i].lane));
       const combinedNotes = [...allRuntimeNotes, ...holdNotesInProgress];
-
-      const visibleNotes = combinedNotes.filter(n => {
-        if (n.time < gameTime - 0.5) return false;
-        if (n.time > gameTime + lookAhead) return false;
-        return true;
-      });
+      const visibleNotes = combinedNotes.filter(n => n.time >= gameTime - 0.5 && n.time <= gameTime + lookAhead);
 
       renderNotes(ctx, visibleNotes, gameTime, activeHoldKeys);
       renderParticles(ctx);
       renderJudgmentPopups(ctx, CANVAS_W, CANVAS_H);
       renderHUD(ctx, CANVAS_W, CANVAS_H);
 
-      // Fade-out transition
+      // Fade-out
       if (finished) {
         const alpha = Math.min(1, resultTransition / 1.0);
-        ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`;
+        ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.85})`;
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        if (resultTransition > 0.5) {
+        if (resultTransition > 0.4) {
           ctx.fillStyle = "#ffffff";
-          ctx.globalAlpha = (resultTransition - 0.5) / 1.0;
+          ctx.globalAlpha = Math.min(1, (resultTransition - 0.4) / 0.8);
           ctx.font = "bold 28px monospace";
           ctx.textAlign = "center";
           ctx.fillText("SONG COMPLETE", CANVAS_W / 2, CANVAS_H / 2);
@@ -311,24 +340,15 @@ export function GameScreen() {
         }
       }
 
-      // Debug line
-      const hasGamepad = navigator.getGamepads()[0] ? "GP:OK" : "GP:none";
-      ctx.fillStyle = "rgba(255,255,255,0.15)";
-      ctx.font = "10px monospace";
-      ctx.textAlign = "left";
-      ctx.fillText(`notes: ${visibleNotes.length}  time: ${gameTime.toFixed(1)}s  ${hasGamepad}  cal: ${getCalibration().toFixed(0)}ms`, 10, CANVAS_H - 6);
+      const gp = navigator.getGamepads()[0] ? "GP:OK" : "GP:none";
+      ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.font = "10px monospace"; ctx.textAlign = "left";
+      ctx.fillText(`time: ${gameTime.toFixed(1)}/${effectiveDuration.toFixed(0)}s  ${gp}  cal: ${getCalibration().toFixed(0)}ms`, 10, CANVAS_H - 6);
     }
 
     startEngine({ update, render });
 
-    return () => {
-      stopEngine();
-      stopAudio();
-    };
+    return () => { stopEngine(); stopAudio(); };
   }, [selectedSong, selectedChart]);
 
-  return (
-    <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-      style={{ display: "block", margin: "0 auto", background: "#000" }} />
-  );
+  return <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} style={{ display: "block", margin: "0 auto", background: "#000" }} />;
 }

@@ -1,6 +1,4 @@
-// Sound effects — short synthesized sounds played alongside main audio
-// Uses Web Audio API oscillator for zero-latency, no file dependencies
-
+// Sound effects — synthesized sounds, zero file dependencies
 let sfxCtx: AudioContext | null = null;
 let sfxGain: GainNode | null = null;
 
@@ -8,98 +6,85 @@ function ensureCtx() {
   if (!sfxCtx) {
     sfxCtx = new AudioContext();
     sfxGain = sfxCtx.createGain();
-    sfxGain.gain.value = 0.22;
+    sfxGain.gain.value = 0.3;
     sfxGain.connect(sfxCtx.destination);
   }
   if (sfxCtx.state === "suspended") sfxCtx.resume();
 }
 
-/** Play a cheerful ascending chime for combo */
-export function playComboSFX() {
-  ensureCtx();
-  if (!sfxCtx || !sfxGain) return;
-  const now = sfxCtx.currentTime;
-
-  [523.25, 659.25].forEach((freq, i) => {
-    const osc = sfxCtx!.createOscillator();
-    const g = sfxCtx!.createGain();
-    osc.type = "triangle";
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(0, now + i * 0.05);
-    g.gain.linearRampToValueAtTime(1, now + i * 0.05 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.12);
-    osc.connect(g);
-    g.connect(sfxGain!);
-    osc.start(now + i * 0.05);
-    osc.stop(now + i * 0.05 + 0.14);
-  });
-}
-
-/** Play a harsh error buzz — like Guitar Hero miss / security door wrong code */
+/** Loud error buzz — like Guitar Hero miss / security door wrong code */
 export function playMissSFX() {
   ensureCtx();
   if (!sfxCtx || !sfxGain) return;
   const now = sfxCtx.currentTime;
 
-  // Layer of detuned sawtooths for a thick, angry buzz
-  [95, 105, 400].forEach((freq) => {
+  // Thick detuned sawtooths
+  [90, 108, 420].forEach((freq) => {
     const osc = sfxCtx!.createOscillator();
     const g = sfxCtx!.createGain();
     osc.type = "sawtooth";
     osc.frequency.value = freq;
-    const vol = freq < 200 ? 0.8 : 0.25; // low end carries the weight
     g.gain.setValueAtTime(0, now);
-    g.gain.linearRampToValueAtTime(vol, now + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    g.gain.linearRampToValueAtTime(freq < 200 ? 1.0 : 0.4, now + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
     osc.connect(g);
     g.connect(sfxGain!);
     osc.start(now);
-    osc.stop(now + 0.2);
+    osc.stop(now + 0.25);
   });
 
-  // White noise burst for the "guitar chunk" texture
-  const bufferSize = sfxCtx.sampleRate * 0.2;
-  const noiseBuffer = sfxCtx.createBuffer(1, bufferSize, sfxCtx.sampleRate);
-  const data = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
-    data[i] = (Math.random() * 2 - 1) * 0.4;
-  }
-  const noise = sfxCtx.createBufferSource();
-  noise.buffer = noiseBuffer;
-
-  // Bandpass filter to shape noise into a "buzz" (like a door buzzer)
+  // Noise burst via bandpass
+  const len = Math.floor(sfxCtx.sampleRate * 0.25);
+  const buf = sfxCtx.createBuffer(1, len, sfxCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
+  const noise = sfxCtx.createBufferSource(); noise.buffer = buf;
   const filter = sfxCtx.createBiquadFilter();
-  filter.type = "bandpass";
-  filter.frequency.value = 400;
-  filter.Q.value = 1.5;
-
-  const noiseGain = sfxCtx.createGain();
-  noiseGain.gain.setValueAtTime(0, now);
-  noiseGain.gain.linearRampToValueAtTime(0.5, now + 0.005);
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
-  noise.connect(filter);
-  filter.connect(noiseGain);
-  noiseGain.connect(sfxGain!);
-  noise.start(now);
-  noise.stop(now + 0.18);
+  filter.type = "bandpass"; filter.frequency.value = 400; filter.Q.value = 1.5;
+  const ng = sfxCtx.createGain();
+  ng.gain.setValueAtTime(0, now);
+  ng.gain.linearRampToValueAtTime(0.7, now + 0.005);
+  ng.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  noise.connect(filter); filter.connect(ng); ng.connect(sfxGain!);
+  noise.start(now); noise.stop(now + 0.2);
 }
 
-/** Vibrate gamepad: 0=none, 0.3=light, 0.8=medium, 1.0=strong */
+/** Rising arpeggio for combo milestones (10/30/50) */
+export function playComboMilestoneSFX(level: number) {
+  ensureCtx();
+  if (!sfxCtx || !sfxGain) return;
+  const now = sfxCtx.currentTime;
+
+  // Rising pitch based on combo level
+  const baseFreq = level >= 50 ? 660 : level >= 30 ? 523 : 392;
+  const notes = level >= 50 ? [baseFreq, baseFreq * 1.25, baseFreq * 1.5, baseFreq * 2]
+    : level >= 30 ? [baseFreq, baseFreq * 1.25, baseFreq * 1.5]
+    : [baseFreq, baseFreq * 1.25];
+
+  notes.forEach((freq, i) => {
+    const osc = sfxCtx!.createOscillator();
+    const g = sfxCtx!.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+    const t = now + i * 0.06;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(1, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    osc.connect(g); g.connect(sfxGain!);
+    osc.start(t); osc.stop(t + 0.16);
+  });
+}
+
+/** Vibrate gamepad */
 export function vibrateGamepad(intensity: number, durationMs = 150) {
   const gp = navigator.getGamepads()[0];
   if (!gp) return;
   try {
-    // Chrome 68+ Gamepad vibration API
     if ((gp as any).vibrationActuator?.playEffect) {
       (gp as any).vibrationActuator.playEffect("dual-rumble", {
-        startDelay: 0,
-        duration: durationMs,
-        weakMagnitude: intensity * 0.6,
-        strongMagnitude: intensity,
+        startDelay: 0, duration: durationMs,
+        weakMagnitude: intensity * 0.6, strongMagnitude: intensity,
       });
     }
-  } catch (_) {
-    // Vibration not supported — silently ignore
-  }
+  } catch (_) { /* not supported */ }
 }
