@@ -169,6 +169,7 @@ export function GameScreen() {
       lastLanePressed = input.lanePressed;
 
       // ── Lane presses ──
+      let anyHitThisFrame = false;
       for (let lane = 0; lane < laneCount; lane++) {
         if (input.laneJustPressed[lane]) {
           const notes = getJudgableNotes(gameTime, window.good);
@@ -185,6 +186,7 @@ export function GameScreen() {
             if (idx >= 0) {
               const result = judgeHit(bestMatch.time, gameTime, window);
               if (result) {
+                anyHitThisFrame = true;
                 if (bestMatch.holdDuration > 0) {
                   activeHolds.set(lane, { noteIndex: idx, holdEndTime: bestMatch.holdEndTime, lastTick: gameTime });
                 } else {
@@ -192,14 +194,22 @@ export function GameScreen() {
                 }
                 addJudgment(result.judgment);
                 pushJudgment(result.judgment, lane);
-                // No SFX for regular hits — only visual feedback
                 const tw = laneCount * LANE_WIDTH;
                 const sx = (CANVAS_W - tw) / 2;
                 spawnHitEffect(sx + lane * LANE_WIDTH + LANE_WIDTH / 2, HIT_LINE_Y, lane, result.judgment);
               }
             }
-          } else {
-            // Bad strum: no note in THIS lane within 3x good window
+          }
+        }
+        if (input.laneJustReleased[lane] && activeHolds.has(lane)) {
+          completeHold(lane, gameTime);
+        }
+      }
+
+      // Bad strum only if NO lane got a hit this frame
+      if (!anyHitThisFrame) {
+        for (let lane = 0; lane < laneCount; lane++) {
+          if (input.laneJustPressed[lane]) {
             const farNotes = getJudgableNotes(gameTime, window.good * 3);
             const hasNoteInLane = farNotes.some(n => n.lane === lane);
             if (!hasNoteInLane) {
@@ -207,11 +217,9 @@ export function GameScreen() {
               vibrateGamepad(0.3, 80);
               addPenalty();
               pushBadStrum(lane);
+              break; // only one BAD per frame
             }
           }
-        }
-        if (input.laneJustReleased[lane] && activeHolds.has(lane)) {
-          completeHold(lane, gameTime);
         }
       }
 
