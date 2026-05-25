@@ -110,12 +110,8 @@ export function renderHUD(ctx: CanvasRenderingContext2D, canvasWidth: number, ca
   comboTimer = Math.max(0, comboTimer - 1 / 60);
 
   // Hit flash — brief glow when hitting a note
-  if (hitFlashTimer > 0 && lastHitType) {
-    if (lastHitType === "bad") {
-      ctx.fillStyle = `rgba(180, 100, 255, ${Math.round(hitFlashTimer * 30).toString(16).padStart(2, "0")})`;
-    } else {
-      ctx.fillStyle = `${JUDGMENT_COLORS[lastHitType]}${Math.round(hitFlashTimer * 40).toString(16).padStart(2, "0")}`;
-    }
+  if (hitFlashTimer > 0 && lastHitType && lastHitType !== "bad") {
+    ctx.fillStyle = `${JUDGMENT_COLORS[lastHitType]}${Math.round(hitFlashTimer * 30).toString(16).padStart(2, "0")}`;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
   }
 
