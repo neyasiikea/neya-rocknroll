@@ -98,7 +98,12 @@ export function GameScreen() {
       }
     }
 
+    let updateGuard = 0; // React StrictMode double-invoke protection
     function update(_dt: number) {
+      // StrictMode calls update() twice per rAF; skip the duplicate
+      updateGuard++;
+      if (updateGuard % 2 === 0) return;
+
       const input = pollInput();
 
       // ── Phase: Loading → Countdown ──
