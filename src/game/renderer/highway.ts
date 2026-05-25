@@ -23,7 +23,7 @@ export function initHighway(cfg: HighwayConfig) {
   config = cfg;
 }
 
-export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: number, lanePressed?: boolean[]) {
+export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: number, lanePressed?: boolean[], celebration?: boolean) {
   const { lanes, canvasWidth, canvasHeight, laneWidth, hitLineY } = config;
 
   // Dark background
@@ -48,11 +48,17 @@ export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: numb
   }
 
   // Background glow driven by bass
-  const glowAlpha = bassIntensity * 0.08;
+  const glowAlpha = bassIntensity * (celebration ? 0.15 : 0.08);
   const centerX = canvasWidth / 2;
   const centerY = canvasHeight / 2;
   const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, canvasWidth * 0.6);
-  gradient.addColorStop(0, `rgba(100, 100, 255, ${glowAlpha * 2})`);
+  if (celebration) {
+    const t = performance.now() / 1000;
+    const hue = (t * 40) % 360;
+    gradient.addColorStop(0, `hsla(${hue}, 80%, 50%, ${glowAlpha * 2})`);
+  } else {
+    gradient.addColorStop(0, `rgba(100, 100, 255, ${glowAlpha * 2})`);
+  }
   gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -91,17 +97,35 @@ export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: numb
   }
 
   // Hit line
-  ctx.strokeStyle = "#ffffff44";
-  ctx.lineWidth = 2;
+  if (celebration) {
+    // Rainbow cycling hit line
+    const t = performance.now() / 1000;
+    const hue = (t * 60) % 360;
+    ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.6)`;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = `hsla(${hue}, 100%, 60%, 0.4)`;
+    ctx.shadowBlur = 12;
+  } else {
+    ctx.strokeStyle = "#ffffff44";
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 0;
+  }
   ctx.beginPath();
   ctx.moveTo(startX, hitLineY);
   ctx.lineTo(startX + totalWidth, hitLineY);
   ctx.stroke();
+  ctx.shadowBlur = 0;
 
   // Hit line glow
   const hitGlow = ctx.createLinearGradient(0, hitLineY - 5, 0, hitLineY + 5);
   hitGlow.addColorStop(0, "rgba(255,255,255,0)");
-  hitGlow.addColorStop(0.5, "rgba(255,255,255,0.15)");
+  if (celebration) {
+    const t = performance.now() / 1000;
+    const hue = (t * 60) % 360;
+    hitGlow.addColorStop(0.5, `hsla(${hue}, 100%, 60%, 0.3)`);
+  } else {
+    hitGlow.addColorStop(0.5, "rgba(255,255,255,0.15)");
+  }
   hitGlow.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = hitGlow;
   ctx.fillRect(startX, hitLineY - 5, totalWidth, 10);

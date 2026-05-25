@@ -11,7 +11,8 @@ import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
 import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
-import { playMissSFX, playComboMilestoneSFX, vibrateGamepad } from "../game/sfx";
+import { playMissSFX, playComboMilestoneSFX, playBadStrumSFX, vibrateGamepad } from "../game/sfx";
+import { addPenalty } from "../game/score";
 
 const CANVAS_W = 800;
 const CANVAS_H = 600;
@@ -24,7 +25,7 @@ const READY_BUFFER = 2;        // 2s empty highway before first note
 const GO_DURATION = 0.5;       // "GO!" display duration
 
 function getNoteSpeed(difficulty: string): number {
-  switch (difficulty) { case "easy": return 160; case "normal": return 290; case "hard": return 360; default: return 300; }
+  switch (difficulty) { case "easy": return 150; case "normal": return 260; case "hard": return 340; default: return 300; }
 }
 
 export function GameScreen() {
@@ -197,6 +198,15 @@ export function GameScreen() {
                 spawnHitEffect(sx + lane * LANE_WIDTH + LANE_WIDTH / 2, HIT_LINE_Y, lane, result.judgment);
               }
             }
+          } else {
+            // Bad strum: pressed key but no note within 5x good window
+            const farNotes = getJudgableNotes(gameTime, window.good * 5);
+            const anyNearby = farNotes.some(n => n.lane === lane);
+            if (!anyNearby) {
+              playBadStrumSFX();
+              vibrateGamepad(0.3, 80);
+              addPenalty();
+            }
           }
         }
         if (input.laneJustReleased[lane] && activeHolds.has(lane)) {
@@ -282,7 +292,11 @@ export function GameScreen() {
         if (n) activeHoldKeys.add(`${n.time.toFixed(4)}_${n.lane}`);
       }
 
-      renderHighway(ctx, bass, lastLanePressed);
+      // Combo celebration: enhanced glow when combo > 20
+      const combo = getCombo();
+      const celebrationMode = combo >= 20;
+      const boostedBass = celebrationMode ? Math.min(1, bass + 0.15) : bass;
+      renderHighway(ctx, boostedBass, lastLanePressed, celebrationMode);
 
       // ── Countdown display ──
       if (countdownPhase >= 1 && countdownPhase <= 3) {

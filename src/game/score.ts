@@ -61,6 +61,10 @@ function getComboMultiplier(combo: number): number {
   return 1;
 }
 
+export function addPenalty() {
+  score = Math.max(0, score - 50);
+}
+
 export function getScore(): number {
   return score;
 }

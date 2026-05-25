@@ -57,7 +57,9 @@ export function updateJudgmentPopups(dt: number) {
 }
 
 export function renderJudgmentPopups(ctx: CanvasRenderingContext2D, canvasWidth: number, _canvasHeight: number) {
-  const { lanes } = { lanes: 5 }; // default max
+  const combo = getCombo();
+  const celebration = combo >= 20;
+  const { lanes } = { lanes: 5 };
   const laneWidth = 80;
   const totalWidth = lanes * laneWidth;
   const startX = (canvasWidth - totalWidth) / 2;
@@ -65,11 +67,19 @@ export function renderJudgmentPopups(ctx: CanvasRenderingContext2D, canvasWidth:
     const alpha = Math.max(0, p.life / p.maxLife);
     const x = p.lane >= 0 ? startX + p.lane * laneWidth + laneWidth / 2 : canvasWidth / 2;
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = JUDGMENT_COLORS[p.judgment];
+    if (celebration && p.judgment !== "miss") {
+      const t = performance.now() / 1000;
+      const hue = (t * 100 + p.lane * 40) % 360;
+      ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+      ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+      ctx.shadowBlur = 18 * alpha;
+    } else {
+      ctx.fillStyle = JUDGMENT_COLORS[p.judgment];
+      ctx.shadowColor = JUDGMENT_COLORS[p.judgment];
+      ctx.shadowBlur = 12 * alpha;
+    }
     ctx.font = `bold ${18 + (1 - alpha) * 8}px monospace`;
     ctx.textAlign = "center";
-    ctx.shadowColor = JUDGMENT_COLORS[p.judgment];
-    ctx.shadowBlur = 12 * alpha;
     ctx.fillText(JUDGMENT_TEXT[p.judgment], x, p.y);
   }
   ctx.globalAlpha = 1;
@@ -116,18 +126,30 @@ export function renderHUD(ctx: CanvasRenderingContext2D, canvasWidth: number, ca
   ctx.fillText(`${acc}%`, canvasWidth - 14, 30);
 
   // Combo — center (large, pulsing)
+  const celebration = combo >= 20;
   if (combo >= 5) {
     const scale = 1 + comboTimer * 0.3;
     ctx.save();
     ctx.translate(canvasWidth / 2, canvasHeight * 0.78);
     ctx.scale(scale, scale);
-    const alpha = 0.5 + comboTimer * 0.5;
-    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    const alpha = (celebration ? 0.8 : 0.5) + comboTimer * (celebration ? 0.2 : 0.5);
+    if (celebration) {
+      const t = performance.now() / 1000;
+      const hue = (t * 80 + combo * 3) % 360;
+      ctx.fillStyle = `hsla(${hue}, 100%, 65%, ${alpha})`;
+      ctx.shadowColor = `hsla(${hue}, 100%, 60%, 0.6)`;
+      ctx.shadowBlur = 20;
+    } else {
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.shadowBlur = 0;
+    }
     ctx.font = "bold 42px monospace";
     ctx.textAlign = "center";
     ctx.fillText(`${combo}`, 0, 0);
-    ctx.font = "12px monospace";
-    ctx.fillText("COMBO", 0, 18);
+    ctx.font = celebration ? "bold 13px monospace" : "12px monospace";
+    ctx.fillStyle = celebration ? "#ffffff88" : "#ffffff44";
+    ctx.fillText(celebration ? "COMBO 🔥" : "COMBO", 0, 18);
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
 }

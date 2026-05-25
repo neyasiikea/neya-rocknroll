@@ -75,6 +75,29 @@ export function playComboMilestoneSFX(level: number) {
   });
 }
 
+/** Muted bass pluck — for pressing a key when no note is nearby ("bad strum") */
+export function playBadStrumSFX() {
+  ensureCtx();
+  if (!sfxCtx || !sfxGain) return;
+  const now = sfxCtx.currentTime;
+
+  // Quick low pluck: 80Hz fundamental + harmonics, fast decay
+  [80, 160, 240].forEach((freq, i) => {
+    const osc = sfxCtx!.createOscillator();
+    const g = sfxCtx!.createGain();
+    osc.type = i === 0 ? "triangle" : "sine";
+    osc.frequency.value = freq;
+    const vol = [0.7, 0.35, 0.15][i];
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(vol, now + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    osc.connect(g);
+    g.connect(sfxGain!);
+    osc.start(now);
+    osc.stop(now + 0.14);
+  });
+}
+
 /** Vibrate gamepad */
 export function vibrateGamepad(intensity: number, durationMs = 150) {
   const gp = navigator.getGamepads()[0];
