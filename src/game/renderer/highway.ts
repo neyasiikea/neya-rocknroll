@@ -169,32 +169,70 @@ export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: numb
     }
   }
 
-  // Power-up edge glow (rainbow pulsing border)
+  // ─── Power-up effects (screen shake + neon borders + color wash) ───
   if (powerUpActive) {
     const t = performance.now() / 1000;
     const hue = (t * 60) % 360;
-    const w = 15;
+
+    // Screen shake
+    const shakeX = Math.sin(t * 30) * 2;
+    const shakeY = Math.cos(t * 27) * 2;
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+
+    // Full-screen subtle color wash (top half only, keep bottom clear)
+    const wash = ctx.createLinearGradient(0, 0, 0, hitLineY);
+    wash.addColorStop(0, `hsla(${(hue + 30) % 360}, 100%, 50%, 0.08)`);
+    wash.addColorStop(0.5, `hsla(${hue}, 100%, 50%, 0.04)`);
+    wash.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, canvasWidth, hitLineY);
+
+    // Neon border glow — thick & pulsing
+    const glowW = 35;
+    const glowAlpha = 0.4 + Math.sin(t * 5) * 0.15;
     // Top
-    const topGrad = ctx.createLinearGradient(0, 0, 0, w);
-    topGrad.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.25)`);
-    topGrad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = topGrad; ctx.fillRect(0, 0, canvasWidth, w);
-    // Bottom
-    const botGrad = ctx.createLinearGradient(0, canvasHeight - w, 0, canvasHeight);
-    botGrad.addColorStop(0, "rgba(0,0,0,0)");
-    botGrad.addColorStop(1, `hsla(${hue}, 100%, 60%, 0.25)`);
-    ctx.fillStyle = botGrad; ctx.fillRect(0, canvasHeight - w, canvasWidth, w);
+    const tg = ctx.createLinearGradient(0, 0, 0, glowW);
+    tg.addColorStop(0, `hsla(${hue}, 100%, 60%, ${glowAlpha})`);
+    tg.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 100%, 50%, ${glowAlpha * 0.5})`);
+    tg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = tg; ctx.fillRect(0, 0, canvasWidth, glowW);
+    // Bottom (thinner — don't block hit area)
+    const bg = ctx.createLinearGradient(0, hitLineY + 10, 0, canvasHeight);
+    bg.addColorStop(0, "rgba(0,0,0,0)");
+    bg.addColorStop(0.7, `hsla(${hue}, 100%, 60%, ${glowAlpha * 0.3})`);
+    bg.addColorStop(1, `hsla(${hue}, 100%, 60%, ${glowAlpha * 0.5})`);
+    ctx.fillStyle = bg; ctx.fillRect(0, hitLineY, canvasWidth, canvasHeight - hitLineY);
     // Left
-    const leftGrad = ctx.createLinearGradient(0, 0, w, 0);
-    leftGrad.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.25)`);
-    leftGrad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = leftGrad; ctx.fillRect(0, 0, w, canvasHeight);
+    const lg = ctx.createLinearGradient(0, 0, glowW, 0);
+    lg.addColorStop(0, `hsla(${hue}, 100%, 60%, ${glowAlpha})`);
+    lg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = lg; ctx.fillRect(0, 0, glowW, canvasHeight);
     // Right
-    const rightGrad = ctx.createLinearGradient(canvasWidth - w, 0, canvasWidth, 0);
-    rightGrad.addColorStop(0, "rgba(0,0,0,0)");
-    rightGrad.addColorStop(1, `hsla(${hue}, 100%, 60%, 0.25)`);
-    ctx.fillStyle = rightGrad; ctx.fillRect(canvasWidth - w, 0, w, canvasHeight);
+    const rg = ctx.createLinearGradient(canvasWidth - glowW, 0, canvasWidth, 0);
+    rg.addColorStop(0, "rgba(0,0,0,0)");
+    rg.addColorStop(1, `hsla(${hue}, 100%, 60%, ${glowAlpha})`);
+    ctx.fillStyle = rg; ctx.fillRect(canvasWidth - glowW, 0, glowW, canvasHeight);
+
+    // Neon scan lines (subtle horizontal bars)
+    ctx.fillStyle = `hsla(${hue}, 100%, 70%, 0.03)`;
+    for (let sy = 0; sy < canvasHeight; sy += 8) {
+      ctx.fillRect(0, sy, canvasWidth, 2);
+    }
+
+    // Top corner flares
+    const flareSize = 80;
+    const flareAlpha = 0.15 + Math.sin(t * 4) * 0.08;
+    [{x: 0, y: 0}, {x: canvasWidth, y: 0}].forEach(corner => {
+      const flare = ctx.createRadialGradient(corner.x, corner.y, 0, corner.x, corner.y, flareSize);
+      flare.addColorStop(0, `hsla(${hue}, 100%, 70%, ${flareAlpha})`);
+      flare.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = flare;
+      ctx.fillRect(corner.x - flareSize, corner.y - flareSize, flareSize * 2, flareSize * 2);
+    });
   }
+
+  if (powerUpActive) ctx.restore(); // end screen shake
 
   // Vignette
   const vignette = ctx.createRadialGradient(centerX, centerY, canvasWidth * 0.5, centerX, centerY, canvasWidth * 0.8);
