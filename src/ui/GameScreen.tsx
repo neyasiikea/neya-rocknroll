@@ -11,7 +11,7 @@ import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
 import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
-import { playMissSFX, playComboMilestoneSFX, vibrateGamepad } from "../game/sfx";
+import { playBadStrumSFX, playComboMilestoneSFX, vibrateGamepad } from "../game/sfx";
 
 const CANVAS_W = 800;
 const CANVAS_H = 600;
@@ -91,8 +91,8 @@ export function GameScreen() {
       } else {
         pushJudgment("miss", lane);
         addJudgment("miss");
-        playMissSFX();
-        vibrateGamepad(0.2, 60);
+        playBadStrumSFX();
+        vibrateGamepad(0.3, 80);
       }
     }
 
@@ -222,7 +222,7 @@ export function GameScreen() {
       for (let i = 0; i < missedCount; i++) {
         pushJudgment("miss", -1);
         addJudgment("miss");
-        if (i === 0) { playMissSFX(); vibrateGamepad(0.2, 60); }
+        if (i === 0) { playBadStrumSFX(); vibrateGamepad(0.3, 80); }
       }
 
       updateParticles(_dt);
