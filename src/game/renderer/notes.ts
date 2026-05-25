@@ -39,8 +39,13 @@ export function renderNotes(
 
     const y = noteTimeToY(note.time, currentTime);
 
-    // Skip notes far off screen
-    if (y < -noteHeight * 2 || y > canvasHeight + noteHeight * 2) continue;
+    // Skip notes far off screen (hold notes use body bounds)
+    if (note.holdDuration > 0) {
+      const hl = note.holdDuration * config.noteSpeed;
+      if (y + noteHeight < -noteHeight || y - hl > canvasHeight + noteHeight) continue;
+    } else {
+      if (y < -noteHeight * 2 || y > canvasHeight + noteHeight * 2) continue;
+    }
 
     const x = startX + note.lane * laneWidth;
     const laneColor = LANE_COLORS[note.lane] ?? "#ffffff";

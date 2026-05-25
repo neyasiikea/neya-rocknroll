@@ -87,7 +87,14 @@ export function GameScreen() {
       if (!hold) return;
       activeHolds.delete(lane);
       markNoteJudged(hold.noteIndex);
-      if (gameTime >= hold.holdEndTime - 0.05) {
+
+      // Get the note's original start time for duration calculation
+      const rtNotes = getRuntimeNotes();
+      const note = rtNotes[hold.noteIndex];
+      const heldDuration = note ? gameTime - note.time : 0;
+      const minRequired = note?.holdDuration ? Math.min(note.holdDuration * 0.5, 1.5) : 1.0; // 50% of hold or 1.5s max
+
+      if (gameTime >= hold.holdEndTime - 0.05 || heldDuration >= minRequired) {
         pushJudgment("perfect", lane);
         addJudgment("perfect");
       } else {
