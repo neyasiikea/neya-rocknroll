@@ -199,10 +199,9 @@ export function GameScreen() {
               }
             }
           } else {
-            // Bad strum: pressed key but no note within 5x good window
+            // Bad strum: no note at all within 5x window, any lane
             const farNotes = getJudgableNotes(gameTime, window.good * 5);
-            const anyNearby = farNotes.some(n => n.lane === lane);
-            if (!anyNearby) {
+            if (farNotes.length === 0) {
               playBadStrumSFX();
               vibrateGamepad(0.3, 80);
               addPenalty();
