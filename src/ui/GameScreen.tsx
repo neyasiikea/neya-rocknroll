@@ -24,7 +24,7 @@ const READY_BUFFER = 2;        // 2s empty highway before first note
 const GO_DURATION = 0.5;       // "GO!" display duration
 
 function getNoteSpeed(difficulty: string): number {
-  switch (difficulty) { case "easy": return 220; case "normal": return 320; case "hard": return 400; default: return 300; }
+  switch (difficulty) { case "easy": return 180; case "normal": return 320; case "hard": return 400; default: return 300; }
 }
 
 export function GameScreen() {
