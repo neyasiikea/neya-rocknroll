@@ -23,7 +23,7 @@ export function initHighway(cfg: HighwayConfig) {
   config = cfg;
 }
 
-export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: number, lanePressed?: boolean[], celebration?: boolean) {
+export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: number, lanePressed?: boolean[], celebration?: boolean, powerUpActive?: boolean) {
   const { lanes, canvasWidth, canvasHeight, laneWidth, hitLineY } = config;
 
   // Dark background
@@ -167,6 +167,33 @@ export function renderHighway(ctx: CanvasRenderingContext2D, bassIntensity: numb
       ctx.fillStyle = pressed ? "#ffffff" : "#ffffff44";
       ctx.fillText(labels[i] ?? "", x, indicatorY + indicatorH + 16);
     }
+  }
+
+  // Power-up edge glow (rainbow pulsing border)
+  if (powerUpActive) {
+    const t = performance.now() / 1000;
+    const hue = (t * 60) % 360;
+    const w = 15;
+    // Top
+    const topGrad = ctx.createLinearGradient(0, 0, 0, w);
+    topGrad.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.25)`);
+    topGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = topGrad; ctx.fillRect(0, 0, canvasWidth, w);
+    // Bottom
+    const botGrad = ctx.createLinearGradient(0, canvasHeight - w, 0, canvasHeight);
+    botGrad.addColorStop(0, "rgba(0,0,0,0)");
+    botGrad.addColorStop(1, `hsla(${hue}, 100%, 60%, 0.25)`);
+    ctx.fillStyle = botGrad; ctx.fillRect(0, canvasHeight - w, canvasWidth, w);
+    // Left
+    const leftGrad = ctx.createLinearGradient(0, 0, w, 0);
+    leftGrad.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.25)`);
+    leftGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = leftGrad; ctx.fillRect(0, 0, w, canvasHeight);
+    // Right
+    const rightGrad = ctx.createLinearGradient(canvasWidth - w, 0, canvasWidth, 0);
+    rightGrad.addColorStop(0, "rgba(0,0,0,0)");
+    rightGrad.addColorStop(1, `hsla(${hue}, 100%, 60%, 0.25)`);
+    ctx.fillStyle = rightGrad; ctx.fillRect(canvasWidth - w, 0, w, canvasHeight);
   }
 
   // Vignette

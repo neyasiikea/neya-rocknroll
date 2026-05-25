@@ -6,7 +6,7 @@ import { loadAudio, playAudio, stopAudio, getPlaybackTime, getBassIntensity, get
 import { pollInput, resetInputState } from "../game/input";
 import { loadChart, getTimingWindow, getJudgableNotes, markNoteJudged, findNoteIndex, autoMissPastNotes, getTotalNotes, getHitCount, getMissCount, getRuntimeNotes } from "../game/chart";
 import { judgeHit } from "../game/judge";
-import { resetScore, addJudgment, buildResult, getCombo } from "../game/score";
+import { resetScore, addJudgment, buildResult, getCombo, activatePowerUp, getPowerUpRemaining } from "../game/score";
 import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
@@ -52,6 +52,9 @@ export function GameScreen() {
     let lastLanePressed: boolean[] = [];
     let pauseThrottle = 0;
     let lastCombo = 0;
+    // Power-up: every ~150 notes, one becomes rainbow (5x score, 8s)
+    const powerUpNoteKeys = new Set<string>();
+    let powerUpCounter = 0;
     let effectiveDuration = MAX_SONG_DURATION; // actual song cap
     const activeHolds = new Map<number, { noteIndex: number; holdEndTime: number; lastTick: number }>();
 
@@ -207,6 +210,27 @@ export function GameScreen() {
                 }
                 addJudgment(result.judgment);
                 pushJudgment(result.judgment, lane);
+
+                // Power-up note check
+                const puKey = `${bestMatch.time.toFixed(4)}_${bestMatch.lane}`;
+                if (powerUpNoteKeys.has(puKey)) {
+                  activatePowerUp();
+                  powerUpNoteKeys.delete(puKey);
+                }
+
+                // Assign next power-up note (~every 150 hits)
+                powerUpCounter++;
+                if (powerUpCounter >= POWER_UP_INTERVAL) {
+                  powerUpCounter = 0;
+                  // Pick a random upcoming note as power-up
+                  const rt = getRuntimeNotes();
+                  const upcoming = rt.filter(n => !n.hit && !n.missed && n.time > gameTime);
+                  if (upcoming.length > 0) {
+                    const pick = upcoming[Math.floor(Math.random() * Math.min(upcoming.length, 20))];
+                    powerUpNoteKeys.add(`${pick.time.toFixed(4)}_${pick.lane}`);
+                  }
+                }
+
                 const tw = laneCount * LANE_WIDTH;
                 const sx = (CANVAS_W - tw) / 2;
                 spawnHitEffect(sx + lane * LANE_WIDTH + LANE_WIDTH / 2, HIT_LINE_Y, lane, result.judgment);
@@ -328,7 +352,7 @@ export function GameScreen() {
       const combo = getCombo();
       const celebrationLevel = combo >= 50 ? 2 : combo >= 20 ? 1 : 0;
       const boostedBass = celebrationLevel > 0 ? Math.min(1, bass + (celebrationLevel === 2 ? 0.25 : 0.15)) : bass;
-      renderHighway(ctx, boostedBass, lastLanePressed, celebrationLevel >= 2);
+      renderHighway(ctx, boostedBass, lastLanePressed, celebrationLevel >= 2, getPowerUpRemaining() > 0);
 
       // ── Countdown display ──
       if (countdownPhase >= 1 && countdownPhase <= 3) {
@@ -388,7 +412,7 @@ export function GameScreen() {
         return n.time >= gameTime - 0.5 && n.time <= gameTime + lookAhead;
       });
 
-      renderNotes(ctx, visibleNotes, gameTime, activeHoldKeys);
+      renderNotes(ctx, visibleNotes, gameTime, activeHoldKeys, powerUpNoteKeys);
       renderParticles(ctx);
       renderComboRings(ctx, bass);
       renderJudgmentPopups(ctx, CANVAS_W, CANVAS_H);

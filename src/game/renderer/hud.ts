@@ -1,5 +1,5 @@
 // src/game/renderer/hud.ts
-import { getScore, getCombo, getStats } from "../score";
+import { getScore, getCombo, getStats, getPowerUpRemaining } from "../score";
 import { LANE_COLORS } from "./highway";
 import type { Judgment } from "../../types";
 
@@ -210,6 +210,17 @@ export function renderHUD(ctx: CanvasRenderingContext2D, canvasWidth: number, ca
   ctx.fillStyle = "#ffffff88";
   ctx.textAlign = "right";
   ctx.fillText(`${acc}%`, canvasWidth - 14, 30);
+
+  // Power-up timer — top right
+  const puRemain = getPowerUpRemaining();
+  if (puRemain > 0) {
+    const t = performance.now() / 1000;
+    const hue = (t * 60) % 360;
+    ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+    ctx.font = "bold 16px monospace";
+    ctx.textAlign = "right";
+    ctx.fillText(`⚡5x ${puRemain.toFixed(1)}s`, canvasWidth - 14, 52);
+  }
 
   // Combo — center (large, pulsing)
   const celebration = combo >= 20;

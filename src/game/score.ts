@@ -51,7 +51,8 @@ export function addJudgment(j: Judgment) {
 
   const comboMult = getComboMultiplier(combo);
   const judgeMult = JUDGMENT_MULTIPLIER[j];
-  score += BASE_SCORE * judgeMult * comboMult;
+  const puMult = getPowerUpMultiplier();
+  score += BASE_SCORE * judgeMult * comboMult * puMult;
 }
 
 function getComboMultiplier(combo: number): number {
@@ -63,6 +64,23 @@ function getComboMultiplier(combo: number): number {
 
 export function addPenalty() {
   score = Math.max(0, score - 100);
+}
+
+// ─── Power-up multiplier ───
+let powerUpEndTime = 0;
+const POWER_UP_MULTIPLIER = 5;
+const POWER_UP_DURATION = 8; // seconds
+
+export function activatePowerUp() {
+  powerUpEndTime = performance.now() / 1000 + POWER_UP_DURATION;
+}
+
+export function getPowerUpMultiplier(): number {
+  return performance.now() / 1000 < powerUpEndTime ? POWER_UP_MULTIPLIER : 1;
+}
+
+export function getPowerUpRemaining(): number {
+  return Math.max(0, powerUpEndTime - performance.now() / 1000);
 }
 
 export function getScore(): number {

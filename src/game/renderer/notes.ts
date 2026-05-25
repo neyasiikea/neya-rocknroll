@@ -28,7 +28,8 @@ export function renderNotes(
   ctx: CanvasRenderingContext2D,
   notes: RuntimeNote[],
   currentTime: number,
-  activeHoldKeys?: Set<string>
+  activeHoldKeys?: Set<string>,
+  powerUpKeys?: Set<string>
 ) {
   const { lanes, canvasWidth, canvasHeight, laneWidth, noteHeight } = config;
   const totalWidth = lanes * laneWidth;
@@ -48,14 +49,17 @@ export function renderNotes(
     }
 
     const x = startX + note.lane * laneWidth;
+    const noteKey = `${note.time.toFixed(4)}_${note.lane}`;
+    const isPowerUp = powerUpKeys?.has(noteKey) ?? false;
     const laneColor = LANE_COLORS[note.lane] ?? "#ffffff";
 
     if (note.holdDuration > 0) {
       const holdLength = note.holdDuration * config.noteSpeed;
       const holdTop = y - holdLength;
-      const key = `${note.time.toFixed(4)}_${note.lane}`;
-      const isHeld = activeHoldKeys?.has(key) ?? false;
+      const isHeld = activeHoldKeys?.has(noteKey) ?? false;
       drawHoldNote(ctx, x, holdTop, laneWidth, holdLength + noteHeight, laneColor, isHeld, note.holdDuration);
+    } else if (isPowerUp) {
+      drawPowerUpNote(ctx, x, y, laneWidth, noteHeight);
     } else {
       drawTapNote(ctx, x, y, laneWidth, noteHeight, laneColor);
     }
@@ -176,6 +180,56 @@ function drawHoldNote(
     }
   }
   ctx.shadowBlur = 0;
+}
+
+function drawPowerUpNote(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number
+) {
+  const t = performance.now() / 1000;
+  const hue = (t * 120) % 360;
+  const scale = 1.3; // bigger
+  const padding = 2;
+  const nx = x + padding - (w * (scale - 1)) / 2;
+  const ny = y - (h * (scale - 1)) / 2;
+  const nw = (w - padding * 2) * scale;
+  const nh = h * scale;
+  const radius = 8;
+
+  // Outer rainbow glow
+  ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+  ctx.shadowBlur = 20 + Math.sin(t * 8) * 5;
+
+  // Body with rainbow gradient
+  const grad = ctx.createLinearGradient(nx, ny, nx, ny + nh);
+  for (let i = 0; i <= 5; i++) {
+    grad.addColorStop(i / 5, `hsl(${(hue + i * 60) % 360}, 100%, 60%)`);
+  }
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(nx + radius, ny);
+  ctx.lineTo(nx + nw - radius, ny);
+  ctx.quadraticCurveTo(nx + nw, ny, nx + nw, ny + radius);
+  ctx.lineTo(nx + nw, ny + nh - radius);
+  ctx.quadraticCurveTo(nx + nw, ny + nh, nx + nw - radius, ny + nh);
+  ctx.lineTo(nx + radius, ny + nh);
+  ctx.quadraticCurveTo(nx, ny + nh, nx, ny + nh - radius);
+  ctx.lineTo(nx, ny + radius);
+  ctx.quadraticCurveTo(nx, ny, nx + radius, ny);
+  ctx.closePath();
+  ctx.fill();
+
+  // White core
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.fillRect(nx + 4, ny + 2, nw - 8, nh * 0.35);
+
+  // Sparkle ring
+  ctx.strokeStyle = `hsl(${(hue + 180) % 360}, 100%, 70%)`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(nx + nw / 2, ny + nh / 2, Math.max(nw, nh) * 0.6 + Math.sin(t * 6) * 3, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 export { noteTimeToY };
