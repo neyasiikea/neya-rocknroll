@@ -92,7 +92,7 @@ export function GameScreen() {
       const rtNotes = getRuntimeNotes();
       const note = rtNotes[hold.noteIndex];
       const heldDuration = note ? gameTime - note.time : 0;
-      const minRequired = note?.holdDuration ? Math.min(note.holdDuration * 0.5, 1.5) : 1.0; // 50% of hold or 1.5s max
+      const minRequired = note?.holdDuration ? Math.min(note.holdDuration * 0.25, 1.5) : 1.0; // 25% of hold or 1.5s max
 
       if (gameTime >= hold.holdEndTime - 0.05 || heldDuration >= minRequired) {
         pushJudgment("perfect", lane);
@@ -382,7 +382,11 @@ export function GameScreen() {
       const holdNotesInProgress = rtNotes.filter((_, i) =>
         holdIndices.has(i) && !allRuntimeNotes.some(a => a.time === rtNotes[i].time && a.lane === rtNotes[i].lane));
       const combinedNotes = [...allRuntimeNotes, ...holdNotesInProgress];
-      const visibleNotes = combinedNotes.filter(n => n.time >= gameTime - 0.5 && n.time <= gameTime + lookAhead);
+      // Active hold notes always visible (even if their start time is far in the past)
+      const visibleNotes = combinedNotes.filter(n => {
+        if (holdIndices.has(rtNotes.indexOf(n))) return true;
+        return n.time >= gameTime - 0.5 && n.time <= gameTime + lookAhead;
+      });
 
       renderNotes(ctx, visibleNotes, gameTime, activeHoldKeys);
       renderParticles(ctx);
