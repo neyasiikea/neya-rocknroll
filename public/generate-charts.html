@@ -115,9 +115,9 @@ function genChart(songId,diff,analysis){
   const minGap={easy:0.35,normal:0.22,hard:0.14}[diff];
   const eThr={easy:0.2,normal:0.18,hard:0.1}[diff];
   const beatLen = analysis.bpm > 0 ? 60 / analysis.bpm : 0.5;
-  const shortHold = beatLen * 3;
-  const medHold   = beatLen * 8;
-  const longHold  = beatLen * 16;
+  const shortHold = beatLen * 5;
+  const medHold   = beatLen * 12;
+  const longHold  = beatLen * 24;
 
   let lastTime=-minGap, lastLane=0;
   const usedLanesAt = new Map(); // when each lane frees up
@@ -182,7 +182,7 @@ function genChart(songId,diff,analysis){
     // ── Hold logic: only at sustained-energy moments ──
     const isSust = isSustained(i);
     if(isSust && hi && !inHoldZone && !laneOccupied(lane)){
-      const holdBaseChance = diff==="easy"?0.04 : diff==="normal"?0.08 : 0.12;
+      const holdBaseChance = diff==="easy"?0.08 : diff==="normal"?0.14 : 0.20;
       if(Math.random() < holdBaseChance){
         let holdLen;
         const r2 = Math.random();
