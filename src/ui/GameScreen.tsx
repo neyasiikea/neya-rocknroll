@@ -182,11 +182,11 @@ export function GameScreen() {
             }
           }
           if (bestMatch) {
+            anyHitThisFrame = true; // prevent BAD as soon as we found a candidate
             const idx = findNoteIndex(bestMatch.time, bestMatch.lane, window.good / 1000);
             if (idx >= 0) {
               const result = judgeHit(bestMatch.time, gameTime, window);
               if (result) {
-                anyHitThisFrame = true;
                 if (bestMatch.holdDuration > 0) {
                   activeHolds.set(lane, { noteIndex: idx, holdEndTime: bestMatch.holdEndTime, lastTick: gameTime });
                 } else {
