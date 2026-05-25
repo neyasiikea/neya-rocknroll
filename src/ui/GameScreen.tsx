@@ -20,6 +20,7 @@ const HIT_LINE_Y = 520;
 const LANE_WIDTH = 80;
 const NOTE_HEIGHT = 20;
 const MAX_SONG_DURATION = 210; // 3:30 cap
+const POWER_UP_INTERVAL = 150; // power-up note every ~150 hits
 const FADE_OUT_DURATION = 5;   // last 5s fade
 const READY_BUFFER = 2;        // 2s empty highway before first note
 const GO_DURATION = 0.5;       // "GO!" display duration
