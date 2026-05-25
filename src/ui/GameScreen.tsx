@@ -170,11 +170,10 @@ export function GameScreen() {
       lastLanePressed = input.lanePressed;
 
       // ── Lane presses ──
+      const hitLanes = new Set<number>(); // lanes that scored a hit this frame
       for (let lane = 0; lane < laneCount; lane++) {
         if (input.laneJustPressed[lane]) {
-          // Step 1: get all unjudged notes near the hit line (within good window)
           const notes = getJudgableNotes(gameTime, window.good);
-          // Step 2: find closest note in THIS lane
           let bestMatch: typeof notes[0] | null = null;
           let bestDist = Infinity;
           for (const note of notes) {
@@ -184,10 +183,9 @@ export function GameScreen() {
             }
           }
           if (bestMatch) {
-            // Step 3: confirm the note still exists in runtime array (index lookup)
+            hitLanes.add(lane); // mark hit BEFORE processing (note may be judged and excluded from future queries)
             const idx = findNoteIndex(bestMatch.time, bestMatch.lane, window.good / 1000);
             if (idx >= 0) {
-              // Step 4: judge timing — perfect(≤perf ms), good(≤good ms), miss(>good)
               const result = judgeHit(bestMatch.time, gameTime, window);
               if (result) {
                 if (bestMatch.holdDuration > 0) {
@@ -209,31 +207,26 @@ export function GameScreen() {
         }
       }
 
-      // ── Bad strum: forward-only, closest future note > 3x good window or none ──
+      // ── Bad strum: only for lanes WITHOUT a hit this frame ──
       for (let lane = 0; lane < laneCount; lane++) {
-        if (input.laneJustPressed[lane]) {
-          // Skip lanes that already had a hit this frame
-          const notes = getJudgableNotes(gameTime, window.good);
-          const hadMatch = notes.some(n => n.lane === lane && Math.abs(n.time - gameTime) <= window.good / 1000);
-          if (hadMatch) continue;
+        if (!input.laneJustPressed[lane]) continue;
+        if (hitLanes.has(lane)) continue; // already hit — never BAD
 
-          // Find closest FUTURE note in this lane (only notes ahead of gameTime)
-          const allNotes = getJudgableNotes(gameTime, 99999);
-          let closestFutureDist = Infinity;
-          for (const n of allNotes) {
-            if (n.lane === lane && n.time >= gameTime) {
-              const d = n.time - gameTime;
-              if (d < closestFutureDist) closestFutureDist = d;
-            }
+        // Find closest FUTURE note in this lane
+        const allNotes = getJudgableNotes(gameTime, 99999);
+        let closestFutureDist = Infinity;
+        for (const n of allNotes) {
+          if (n.lane === lane && n.time >= gameTime) {
+            const d = n.time - gameTime;
+            if (d < closestFutureDist) closestFutureDist = d;
           }
-          // BAD if: no future note at all, OR closest is > 3x good window away
-          const threshold = (window.good * 3) / 1000;
-          if (closestFutureDist === Infinity || closestFutureDist > threshold) {
-            playBadStrumSFX();
-            vibrateGamepad(0.5, 80);
-            addPenalty();
-            pushBadStrum(lane);
-          }
+        }
+        const threshold = (window.good * 3) / 1000;
+        if (closestFutureDist === Infinity || closestFutureDist > threshold) {
+          playBadStrumSFX();
+          vibrateGamepad(0.5, 80);
+          addPenalty();
+          pushBadStrum(lane);
         }
       }
 
