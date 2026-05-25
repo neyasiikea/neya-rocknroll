@@ -112,8 +112,8 @@ async function analyzeAudio(path){
 function genChart(songId,diff,analysis){
   const lanes=LANES[diff];
   const notes=[];
-  const minGap={easy:0.35,normal:0.22,hard:0.14}[diff];
-  const eThr={easy:0.2,normal:0.18,hard:0.1}[diff];
+  const minGap={easy:0.42,normal:0.22,hard:0.14}[diff];
+  const eThr={easy:0.24,normal:0.18,hard:0.1}[diff];
   const beatLen = analysis.bpm > 0 ? 60 / analysis.bpm : 0.5;
   const shortHold = beatLen * 5;
   const medHold   = beatLen * 12;
@@ -148,13 +148,9 @@ function genChart(songId,diff,analysis){
     const laneOccupied = (l) => (usedLanesAt.get(l) || 0) > o.time;
 
     // ── During hold zones: drastically reduce tap notes ──
-    if(inHoldZone && diff !== "hard") {
-      // Only place a note every 3 beats during holds (easy/normal)
-      if(o.time - lastTime < beatLen * 3) continue;
-    }
-    if(inHoldZone && diff === "hard") {
-      // Hard: still reduced but not as much
-      if(o.time - lastTime < beatLen * 1.5) continue;
+    if(inHoldZone){
+      const holdGap = diff==="easy" ? beatLen*4 : diff==="normal" ? beatLen*3 : beatLen*1.5;
+      if(o.time - lastTime < holdGap) continue;
     }
 
     // Pick lane

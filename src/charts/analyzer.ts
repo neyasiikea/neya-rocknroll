@@ -215,10 +215,10 @@ export function chartFromAnalysis(
 ): Chart {
   const laneCount = difficulty === "easy" ? 3 : difficulty === "normal" ? 4 : 5;
   const notes: Note[] = [];
-  const minGap = difficulty === "easy" ? 0.35 : difficulty === "normal" ? 0.22 : 0.14;
+  const minGap = difficulty === "easy" ? 0.42 : difficulty === "normal" ? 0.22 : 0.14;
 
   // Energy thresholds per difficulty
-  const energyThreshold = difficulty === "easy" ? 0.2 : difficulty === "normal" ? 0.18 : 0.1;
+  const energyThreshold = difficulty === "easy" ? 0.24 : difficulty === "normal" ? 0.18 : 0.1;
 
   let lastTime = -minGap;
   let lastLane = 0;
