@@ -72,7 +72,7 @@ const JUDGMENT_COLORS: Record<string, string> = {
   perfect: "#00FF88",
   good: "#FFCC00",
   miss: "#FF3366",
-  bad: "#CC66FF",
+  bad: "#CC1111",
 };
 
 const JUDGMENT_TEXT: Record<string, string> = {

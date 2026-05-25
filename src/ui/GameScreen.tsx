@@ -10,8 +10,9 @@ import { resetScore, addJudgment, buildResult, getCombo } from "../game/score";
 import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
-import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups, spawnComboRing, updateComboRings, renderComboRings, clearComboRings } from "../game/renderer/hud";
+import { renderHUD, pushJudgment, pushBadStrum, renderJudgmentPopups, updateJudgmentPopups, spawnComboRing, updateComboRings, renderComboRings, clearComboRings } from "../game/renderer/hud";
 import { playBadStrumSFX, playComboMilestoneSFX, vibrateGamepad } from "../game/sfx";
+import { addPenalty } from "../game/score";
 
 const CANVAS_W = 800;
 const CANVAS_H = 600;
@@ -205,6 +206,34 @@ export function GameScreen() {
         }
         if (input.laneJustReleased[lane] && activeHolds.has(lane)) {
           completeHold(lane, gameTime);
+        }
+      }
+
+      // ── Bad strum: forward-only, closest future note > 3x good window or none ──
+      for (let lane = 0; lane < laneCount; lane++) {
+        if (input.laneJustPressed[lane]) {
+          // Skip lanes that already had a hit this frame
+          const notes = getJudgableNotes(gameTime, window.good);
+          const hadMatch = notes.some(n => n.lane === lane && Math.abs(n.time - gameTime) <= window.good / 1000);
+          if (hadMatch) continue;
+
+          // Find closest FUTURE note in this lane (only notes ahead of gameTime)
+          const allNotes = getJudgableNotes(gameTime, 99999);
+          let closestFutureDist = Infinity;
+          for (const n of allNotes) {
+            if (n.lane === lane && n.time >= gameTime) {
+              const d = n.time - gameTime;
+              if (d < closestFutureDist) closestFutureDist = d;
+            }
+          }
+          // BAD if: no future note at all, OR closest is > 3x good window away
+          const threshold = (window.good * 3) / 1000;
+          if (closestFutureDist === Infinity || closestFutureDist > threshold) {
+            playBadStrumSFX();
+            vibrateGamepad(0.5, 80);
+            addPenalty();
+            pushBadStrum(lane);
+          }
         }
       }
 

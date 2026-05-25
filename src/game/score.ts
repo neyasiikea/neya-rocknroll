@@ -62,7 +62,7 @@ function getComboMultiplier(combo: number): number {
 }
 
 export function addPenalty() {
-  score = Math.max(0, score - 50);
+  score = Math.max(0, score - 100);
 }
 
 export function getScore(): number {
