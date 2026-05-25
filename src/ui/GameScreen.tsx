@@ -10,9 +10,8 @@ import { resetScore, addJudgment, buildResult, getCombo } from "../game/score";
 import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
-import { renderHUD, pushJudgment, pushBadStrum, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
-import { playMissSFX, playComboMilestoneSFX, playBadStrumSFX, vibrateGamepad } from "../game/sfx";
-import { addPenalty } from "../game/score";
+import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
+import { playMissSFX, playComboMilestoneSFX, vibrateGamepad } from "../game/sfx";
 
 const CANVAS_W = 800;
 const CANVAS_H = 600;
@@ -169,10 +168,11 @@ export function GameScreen() {
       lastLanePressed = input.lanePressed;
 
       // ── Lane presses ──
-      let anyHitThisFrame = false;
       for (let lane = 0; lane < laneCount; lane++) {
         if (input.laneJustPressed[lane]) {
+          // Step 1: get all unjudged notes near the hit line (within good window)
           const notes = getJudgableNotes(gameTime, window.good);
+          // Step 2: find closest note in THIS lane
           let bestMatch: typeof notes[0] | null = null;
           let bestDist = Infinity;
           for (const note of notes) {
@@ -182,9 +182,10 @@ export function GameScreen() {
             }
           }
           if (bestMatch) {
-            anyHitThisFrame = true; // prevent BAD as soon as we found a candidate
+            // Step 3: confirm the note still exists in runtime array (index lookup)
             const idx = findNoteIndex(bestMatch.time, bestMatch.lane, window.good / 1000);
             if (idx >= 0) {
+              // Step 4: judge timing — perfect(≤perf ms), good(≤good ms), miss(>good)
               const result = judgeHit(bestMatch.time, gameTime, window);
               if (result) {
                 if (bestMatch.holdDuration > 0) {
@@ -203,31 +204,6 @@ export function GameScreen() {
         }
         if (input.laneJustReleased[lane] && activeHolds.has(lane)) {
           completeHold(lane, gameTime);
-        }
-      }
-
-      // Bad strum: closest note in pressed lane is >3x good window away
-      if (!anyHitThisFrame) {
-        for (let lane = 0; lane < laneCount; lane++) {
-          if (input.laneJustPressed[lane]) {
-            // Find the SINGLE closest note in this lane, regardless of distance
-            const allNotes = getJudgableNotes(gameTime, 99999); // all unjudged notes
-            let closestDist = Infinity;
-            for (const n of allNotes) {
-              if (n.lane === lane) {
-                const d = Math.abs(n.time - gameTime);
-                if (d < closestDist) closestDist = d;
-              }
-            }
-            const threshold = (window.good * 3) / 1000; // convert ms to seconds
-            if (closestDist > threshold) {
-              playBadStrumSFX();
-              vibrateGamepad(0.3, 80);
-              addPenalty();
-              pushBadStrum(lane);
-              break;
-            }
-          }
         }
       }
 
