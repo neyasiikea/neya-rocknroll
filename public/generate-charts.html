@@ -114,22 +114,50 @@ function genChart(songId,diff,analysis){
   const notes=[];
   const minGap={easy:0.35,normal:0.22,hard:0.14}[diff];
   const eThr={easy:0.2,normal:0.18,hard:0.1}[diff];
-  // Hold tier lengths (seconds) based on BPM
   const beatLen = analysis.bpm > 0 ? 60 / analysis.bpm : 0.5;
-  const shortHold = beatLen * 3;   // ~3 beats
-  const medHold   = beatLen * 8;   // ~8 beats
-  const longHold  = beatLen * 16;  // ~16 beats
+  const shortHold = beatLen * 3;
+  const medHold   = beatLen * 8;
+  const longHold  = beatLen * 16;
+
   let lastTime=-minGap, lastLane=0;
-  const usedLanesAt = new Map(); // track when each lane is occupied (for hold placement)
+  const usedLanesAt = new Map(); // when each lane frees up
 
-  for(const o of analysis.onsets){
-    if(o.time-lastTime<minGap||o.energy<eThr) continue;
-    const sec=analysis.sections.find(s=>o.time>=s.start&&o.time<s.end);
-    const se=sec?.energy??1;
-    const hi=se>1.2, lo=se<0.7;
+  // Track "hold zone" — during a hold, ALL free lanes have reduced density
+  let holdZoneEnd = 0; // gameTime until which new tap notes are suppressed
+  const isInHoldZone = (t) => t < holdZoneEnd;
 
-    // Skip if lane is occupied by a hold
+  // Detect sustained energy: consecutive onsets with high energy → good for holds
+  function isSustained(idx, lookAheadBeats=4) {
+    if(idx >= analysis.onsets.length - 2) return false;
+    const startT = analysis.onsets[idx].time;
+    const endT = startT + beatLen * lookAheadBeats;
+    let count = 0, totalE = 0;
+    for(let j=idx; j<analysis.onsets.length && analysis.onsets[j].time <= endT; j++){
+      count++; totalE += analysis.onsets[j].energy;
+    }
+    return count >= lookAheadBeats * 0.6 && (totalE/count) > 0.15;
+  }
+
+  for(let i=0; i<analysis.onsets.length; i++){
+    const o = analysis.onsets[i];
+    if(o.time - lastTime < minGap || o.energy < eThr) continue;
+    const sec = analysis.sections.find(s=>o.time>=s.start&&o.time<s.end);
+    const se = sec?.energy??1;
+    const hi = se > 1.2, lo = se < 0.7;
+    const inHoldZone = isInHoldZone(o.time);
     const laneOccupied = (l) => (usedLanesAt.get(l) || 0) > o.time;
+
+    // ── During hold zones: drastically reduce tap notes ──
+    if(inHoldZone && diff !== "hard") {
+      // Only place a note every 3 beats during holds (easy/normal)
+      if(o.time - lastTime < beatLen * 3) continue;
+    }
+    if(inHoldZone && diff === "hard") {
+      // Hard: still reduced but not as much
+      if(o.time - lastTime < beatLen * 1.5) continue;
+    }
+
+    // Pick lane
     let lane;
     let attempts = 0;
     do {
@@ -140,44 +168,47 @@ function genChart(songId,diff,analysis){
       attempts++;
     } while (laneOccupied(lane) && attempts < 5);
 
+    if(laneOccupied(lane)) continue; // no free lane
+
     notes.push({time:o.time,lane});
     lastTime=o.time;lastLane=lane;
 
-    // Chords
-    if(hi&&diff!=="easy"&&Math.random()<0.25&&lanes>=3){
+    // Chords (only outside hold zones)
+    if(!inHoldZone && hi && diff!=="easy" && Math.random()<0.2 && lanes>=3){
       const cl=(lane+2+Math.floor(Math.random()*(lanes-2)))%lanes;
       if(cl!==lane && !laneOccupied(cl)) notes.push({time:o.time,lane:cl});
     }
 
-    // ── Tiered hold logic ──
-    if(hi && !laneOccupied(lane)){
-      const holdChance = diff==="easy"?0.06 : diff==="normal"?0.12 : 0.18;
-      if(Math.random() < holdChance){
+    // ── Hold logic: only at sustained-energy moments ──
+    const isSust = isSustained(i);
+    if(isSust && hi && !inHoldZone && !laneOccupied(lane)){
+      const holdBaseChance = diff==="easy"?0.04 : diff==="normal"?0.08 : 0.12;
+      if(Math.random() < holdBaseChance){
         let holdLen;
         const r2 = Math.random();
-        if(diff==="easy"){
-          holdLen = shortHold; // easy: only short holds
-        } else if(diff==="normal"){
-          holdLen = r2 < 0.5 ? shortHold : medHold; // normal: short + medium
-        } else {
-          // hard: all tiers
-          holdLen = r2 < 0.45 ? shortHold : r2 < 0.8 ? medHold : longHold;
-        }
-        // Don't exceed 3:30 cap
-        const maxEnd = Math.min(o.time + holdLen, 210 - 5);
-        holdLen = Math.max(shortHold, maxEnd - o.time);
-        const ln = notes[notes.length - 1];
-        if(ln && !ln.hold) {
-          ln.hold = holdLen;
-          usedLanesAt.set(lane, o.time + holdLen + beatLen); // leave 1-beat gap after hold
-        }
+        if(diff==="easy"){ holdLen = shortHold; }
+        else if(diff==="normal"){ holdLen = r2 < 0.5 ? shortHold : medHold; }
+        else { holdLen = r2 < 0.45 ? shortHold : r2 < 0.75 ? medHold : longHold; }
 
-        // Dual hold for normal+ at high energy
-        if(diff!=="easy" && lanes >= 3 && Math.random() < 0.15){
-          const dl = (lane + 2 + Math.floor(Math.random() * (lanes - 2))) % lanes;
-          if(dl !== lane && !laneOccupied(dl)){
-            notes.push({time: o.time, lane: dl, hold: holdLen});
-            usedLanesAt.set(dl, o.time + holdLen + beatLen);
+        const ln = notes[notes.length - 1];
+        if(ln && !ln.hold){
+          ln.hold = Math.min(holdLen, 210 - 5 - o.time);
+          usedLanesAt.set(lane, o.time + holdLen + beatLen);
+          // Set hold zone: ALL lanes quiet during this hold
+          holdZoneEnd = Math.max(holdZoneEnd, o.time + holdLen);
+
+          // Multi-lane holds (2-3 lanes) for sustained moments
+          if(diff !== "easy" && lanes >= 3 && Math.random() < (diff==="hard"?0.4:0.2)){
+            const multiCount = diff==="hard" && lanes>=5 ? 3 : 2;
+            const used = new Set([lane]);
+            for(let m=1; m<multiCount; m++){
+              let ml = (lane + m * 2 + Math.floor(Math.random()*2)) % lanes;
+              if(!used.has(ml) && !laneOccupied(ml)){
+                notes.push({time: o.time, lane: ml, hold: holdLen});
+                usedLanesAt.set(ml, o.time + holdLen + beatLen);
+                used.add(ml);
+              }
+            }
           }
         }
       }
