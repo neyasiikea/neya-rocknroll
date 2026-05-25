@@ -3,20 +3,22 @@ import { getScore, getCombo, getStats } from "../score";
 import { LANE_COLORS } from "./highway";
 import type { Judgment } from "../../types";
 
-const JUDGMENT_COLORS: Record<Judgment, string> = {
+const JUDGMENT_COLORS: Record<string, string> = {
   perfect: "#00FF88",
   good: "#FFCC00",
   miss: "#FF3366",
+  bad: "#CC66FF",
 };
 
-const JUDGMENT_TEXT: Record<Judgment, string> = {
+const JUDGMENT_TEXT: Record<string, string> = {
   perfect: "PERFECT",
   good: "GOOD",
   miss: "MISS",
+  bad: "BAD",
 };
 
 interface Popup {
-  judgment: Judgment;
+  judgment: string;
   lane: number;
   x: number;
   y: number;
@@ -30,15 +32,27 @@ let comboTimer = 0;
 let lastHitType: Judgment | null = null;
 let hitFlashTimer = 0;
 
-export function pushJudgment(judgment: Judgment, lane: number) {
-  lastHitType = judgment;
+export function pushBadStrum(lane: number) {
+  lastHitType = "bad";
+  hitFlashTimer = 0.1;
+  popups.push({
+    judgment: "bad",
+    lane,
+    x: 0,
+    y: 500,
+    life: 0.5,
+    maxLife: 0.5,
+  });
+}
+
+export function pushJudgment(judgment: string, lane: number) {
+  lastHitType = (judgment === "perfect" ? "perfect" : judgment === "good" ? "good" : "miss") as Judgment;
   hitFlashTimer = 0.15;
-  // Popup at lane center
   popups.push({
     judgment,
     lane,
-    x: 0, // calculated in render
-    y: 500, // near hit line
+    x: 0,
+    y: 500,
     life: 0.7,
     maxLife: 0.7,
   });
@@ -67,7 +81,7 @@ export function renderJudgmentPopups(ctx: CanvasRenderingContext2D, canvasWidth:
     const alpha = Math.max(0, p.life / p.maxLife);
     const x = p.lane >= 0 ? startX + p.lane * laneWidth + laneWidth / 2 : canvasWidth / 2;
     ctx.globalAlpha = alpha;
-    if (celebration && p.judgment !== "miss") {
+    if (celebration && p.judgment !== "miss" && p.judgment !== "bad") {
       const t = performance.now() / 1000;
       const hue = (t * 100 + p.lane * 40) % 360;
       ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
@@ -97,7 +111,11 @@ export function renderHUD(ctx: CanvasRenderingContext2D, canvasWidth: number, ca
 
   // Hit flash — brief glow when hitting a note
   if (hitFlashTimer > 0 && lastHitType) {
-    ctx.fillStyle = `${JUDGMENT_COLORS[lastHitType]}${Math.round(hitFlashTimer * 40).toString(16).padStart(2, "0")}`;
+    if (lastHitType === "bad") {
+      ctx.fillStyle = `rgba(180, 100, 255, ${Math.round(hitFlashTimer * 30).toString(16).padStart(2, "0")})`;
+    } else {
+      ctx.fillStyle = `${JUDGMENT_COLORS[lastHitType]}${Math.round(hitFlashTimer * 40).toString(16).padStart(2, "0")}`;
+    }
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
   }
 

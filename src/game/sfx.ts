@@ -81,20 +81,25 @@ export function playBadStrumSFX() {
   if (!sfxCtx || !sfxGain) return;
   const now = sfxCtx.currentTime;
 
+  // Boost master gain briefly for this sound
+  const prevGain = sfxGain.gain.value;
+  sfxGain.gain.setValueAtTime(0.5, now);
+  sfxGain.gain.setValueAtTime(prevGain, now + 0.18);
+
   // Quick low pluck: 80Hz fundamental + harmonics, fast decay
   [80, 160, 240].forEach((freq, i) => {
     const osc = sfxCtx!.createOscillator();
     const g = sfxCtx!.createGain();
     osc.type = i === 0 ? "triangle" : "sine";
     osc.frequency.value = freq;
-    const vol = [0.7, 0.35, 0.15][i];
+    const vol = [1.2, 0.7, 0.4][i];
     g.gain.setValueAtTime(0, now);
     g.gain.linearRampToValueAtTime(vol, now + 0.003);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
     osc.connect(g);
     g.connect(sfxGain!);
     osc.start(now);
-    osc.stop(now + 0.14);
+    osc.stop(now + 0.16);
   });
 }
 

@@ -10,7 +10,7 @@ import { resetScore, addJudgment, buildResult, getCombo } from "../game/score";
 import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
-import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
+import { renderHUD, pushJudgment, pushBadStrum, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
 import { playMissSFX, playComboMilestoneSFX, playBadStrumSFX, vibrateGamepad } from "../game/sfx";
 import { addPenalty } from "../game/score";
 
@@ -206,6 +206,7 @@ export function GameScreen() {
               playBadStrumSFX();
               vibrateGamepad(0.3, 80);
               addPenalty();
+              pushBadStrum(lane);
             }
           }
         }
