@@ -107,41 +107,43 @@ function drawHoldNote(
   const isLong = tier >= 3;
   const isMed = tier === 2;
 
+  // ── Fill: always clearly visible, enhanced when held ──
   if (isHeld) {
-    ctx.fillStyle = isLong ? `${color}cc` : isMed ? `${color}aa` : `${color}88`;
+    ctx.fillStyle = isLong ? `${color}ff` : isMed ? `${color}ee` : `${color}cc`;
     ctx.shadowColor = color;
-    ctx.shadowBlur = isLong ? 40 : isMed ? 28 : 20;
+    ctx.shadowBlur = isLong ? 50 : isMed ? 36 : 28;
   } else {
-    ctx.fillStyle = isLong ? `${color}55` : isMed ? `${color}44` : `${color}33`;
-    ctx.shadowBlur = 0;
+    // Inactive but bright enough to see clearly
+    ctx.fillStyle = isLong ? `${color}99` : isMed ? `${color}88` : `${color}77`;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = isLong ? 12 : isMed ? 8 : 4; // subtle glow even when inactive
   }
   ctx.fillRect(nx, y, nw, h);
 
-  // Hold borders
-  ctx.strokeStyle = isHeld ? `${color}` : `${color}66`;
-  ctx.lineWidth = isHeld ? (isLong ? 4 : isMed ? 3 : 2) : 1;
+  // Hold borders — always visible
+  ctx.strokeStyle = isHeld ? `${color}` : `${color}aa`;
+  ctx.lineWidth = isHeld ? (isLong ? 5 : isMed ? 3 : 2) : (isMed || isLong ? 2 : 1.5);
   ctx.strokeRect(nx, y, nw, h);
   ctx.shadowBlur = 0;
 
-  // Hold head (bottom) — brighter for longer holds
+  // Hold head (bottom) — always bright beacon
   ctx.fillStyle = color;
   ctx.shadowColor = color;
-  ctx.shadowBlur = isHeld ? (isLong ? 40 : isMed ? 28 : 20) : 10;
-  const headH = isLong ? 14 : isMed ? 10 : 8;
+  ctx.shadowBlur = isHeld ? (isLong ? 50 : isMed ? 36 : 28) : (isMed || isLong ? 18 : 12);
+  const headH = isLong ? 16 : isMed ? 12 : 10;
   ctx.fillRect(nx, y + h - headH, nw, headH);
   ctx.shadowBlur = 0;
 
-  // Side glow lines for active holds
-  if (isHeld) {
-    ctx.strokeStyle = isLong ? `${color}88` : isMed ? `${color}66` : `${color}44`;
-    ctx.lineWidth = isLong ? 5 : isMed ? 4 : 3;
-    ctx.beginPath(); ctx.moveTo(nx, y); ctx.lineTo(nx, y + h); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(nx + nw, y); ctx.lineTo(nx + nw, y + h); ctx.stroke();
-  }
+  // Side glow lines — always visible
+  const sideAlpha = isHeld ? (isLong ? "aa" : isMed ? "88" : "66") : (isMed || isLong ? "55" : "44");
+  ctx.strokeStyle = `${color}${sideAlpha}`;
+  ctx.lineWidth = isHeld ? (isLong ? 5 : isMed ? 4 : 3) : (isMed || isLong ? 2 : 1.5);
+  ctx.beginPath(); ctx.moveTo(nx, y); ctx.lineTo(nx, y + h); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(nx + nw, y); ctx.lineTo(nx + nw, y + h); ctx.stroke();
 
-  // ── Tier-specific sparkle effects ──
+  // ── Tier-specific sparkle effects (only when held) ──
   if (isHeld && (isMed || isLong)) {
-    const sparkCount = isLong ? 20 : isMed ? 10 : 0;
+    const sparkCount = isLong ? 24 : isMed ? 14 : 0;
     for (let i = 0; i < sparkCount; i++) {
       const sy = y + (h * (i + 0.5)) / sparkCount;
       const sx = nx + nw / 2 + Math.sin(t * 15 + i * 2.5) * (nw * 0.35);
