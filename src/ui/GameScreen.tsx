@@ -206,18 +206,26 @@ export function GameScreen() {
         }
       }
 
-      // Bad strum only if NO lane got a hit this frame
+      // Bad strum: closest note in pressed lane is >3x good window away
       if (!anyHitThisFrame) {
         for (let lane = 0; lane < laneCount; lane++) {
           if (input.laneJustPressed[lane]) {
-            const farNotes = getJudgableNotes(gameTime, window.good * 3);
-            const hasNoteInLane = farNotes.some(n => n.lane === lane);
-            if (!hasNoteInLane) {
+            // Find the SINGLE closest note in this lane, regardless of distance
+            const allNotes = getJudgableNotes(gameTime, 99999); // all unjudged notes
+            let closestDist = Infinity;
+            for (const n of allNotes) {
+              if (n.lane === lane) {
+                const d = Math.abs(n.time - gameTime);
+                if (d < closestDist) closestDist = d;
+              }
+            }
+            const threshold = (window.good * 3) / 1000; // convert ms to seconds
+            if (closestDist > threshold) {
               playBadStrumSFX();
               vibrateGamepad(0.3, 80);
               addPenalty();
               pushBadStrum(lane);
-              break; // only one BAD per frame
+              break;
             }
           }
         }
