@@ -10,7 +10,7 @@ import { resetScore, addJudgment, buildResult, getCombo } from "../game/score";
 import { initHighway, renderHighway } from "../game/renderer/highway";
 import { initNotes, renderNotes } from "../game/renderer/notes";
 import { spawnHitEffect, updateParticles, renderParticles, clearParticles } from "../game/renderer/particles";
-import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups } from "../game/renderer/hud";
+import { renderHUD, pushJudgment, renderJudgmentPopups, updateJudgmentPopups, spawnComboRing, updateComboRings, renderComboRings, clearComboRings } from "../game/renderer/hud";
 import { playBadStrumSFX, playComboMilestoneSFX, vibrateGamepad } from "../game/sfx";
 
 const CANVAS_W = 800;
@@ -56,6 +56,7 @@ export function GameScreen() {
 
     resetScore();
     clearParticles();
+    clearComboRings();
     loadChart(selectedChart);
     initHighway({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed });
     initNotes({ lanes: laneCount, canvasWidth: CANVAS_W, canvasHeight: CANVAS_H, hitLineY: HIT_LINE_Y, laneWidth: LANE_WIDTH, noteSpeed, noteHeight: NOTE_HEIGHT });
@@ -227,6 +228,7 @@ export function GameScreen() {
 
       updateParticles(_dt);
       updateJudgmentPopups(_dt);
+      updateComboRings(_dt, getBassIntensity());
 
       // ── Combo milestone SFX ──
       const combo = getCombo();
@@ -237,6 +239,9 @@ export function GameScreen() {
         }
       }
       lastCombo = combo;
+
+      // Spawn expanding rings when combo >= 50
+      if (combo >= 50) spawnComboRing(CANVAS_W, CANVAS_H);
 
       // ── Song end: audio finished or time cap ──
       const allJudged = (getHitCount() + getMissCount()) >= getTotalNotes() && getTotalNotes() > 0;
@@ -347,6 +352,7 @@ export function GameScreen() {
 
       renderNotes(ctx, visibleNotes, gameTime, activeHoldKeys);
       renderParticles(ctx);
+      renderComboRings(ctx, bass);
       renderJudgmentPopups(ctx, CANVAS_W, CANVAS_H);
       renderHUD(ctx, CANVAS_W, CANVAS_H);
 

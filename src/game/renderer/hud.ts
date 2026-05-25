@@ -3,6 +3,71 @@ import { getScore, getCombo, getStats } from "../score";
 import { LANE_COLORS } from "./highway";
 import type { Judgment } from "../../types";
 
+// ─── Expanding rings (combo 50+ celebration) ───
+
+interface Ring {
+  x: number; y: number;
+  radius: number; maxRadius: number;
+  alpha: number; hue: number;
+  spawnTime: number;
+}
+
+const rings: Ring[] = [];
+let lastRingSpawn = 0;
+
+export function spawnComboRing(canvasWidth: number, canvasHeight: number) {
+  const now = performance.now() / 1000;
+  if (now - lastRingSpawn < 0.4) return; // spawn every 400ms
+  lastRingSpawn = now;
+  rings.push({
+    x: canvasWidth / 2,
+    y: canvasHeight * 0.78,
+    radius: 10,
+    maxRadius: Math.min(canvasWidth, canvasHeight) * 0.6,
+    alpha: 0.6,
+    hue: (now * 120) % 360,
+    spawnTime: now,
+  });
+}
+
+export function updateComboRings(dt: number, bassIntensity: number) {
+  const now = performance.now() / 1000;
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i];
+    const age = now - r.spawnTime;
+    // Expand speed: faster with bass
+    const speed = 200 + bassIntensity * 300;
+    r.radius += speed * dt;
+    // Fade as it expands
+    r.alpha = 0.6 * (1 - r.radius / r.maxRadius);
+    // Remove when fully expanded or invisible
+    if (r.radius >= r.maxRadius || r.alpha <= 0.01) {
+      rings.splice(i, 1);
+    }
+  }
+}
+
+export function renderComboRings(ctx: CanvasRenderingContext2D, bassIntensity: number) {
+  for (const r of rings) {
+    // Pulse with bass
+    const pulse = 1 + bassIntensity * 0.3;
+    const radius = r.radius * pulse;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `hsla(${r.hue}, 100%, 60%, ${r.alpha})`;
+    ctx.lineWidth = 2 + (1 - r.radius / r.maxRadius) * 3;
+    ctx.shadowColor = `hsla(${r.hue}, 100%, 60%, ${r.alpha * 0.5})`;
+    ctx.shadowBlur = 15;
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+}
+
+export function clearComboRings() {
+  rings.length = 0;
+  lastRingSpawn = 0;
+}
+
 const JUDGMENT_COLORS: Record<string, string> = {
   perfect: "#00FF88",
   good: "#FFCC00",
@@ -166,13 +231,6 @@ export function renderHUD(ctx: CanvasRenderingContext2D, canvasWidth: number, ca
       if (superCelebration) {
         ctx.font = "bold 52px monospace";
         ctx.fillText(`${combo}`, 0, 0);
-        // Sparkle ring
-        ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 100%, 70%, 0.3)`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, 50 + Math.sin(t * 3) * 5, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.lineWidth = 1;
       } else {
         ctx.font = "bold 42px monospace";
         ctx.fillText(`${combo}`, 0, 0);
