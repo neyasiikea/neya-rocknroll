@@ -50,7 +50,7 @@ export function renderNotes(
       const holdTop = y - holdLength;
       const key = `${note.time.toFixed(4)}_${note.lane}`;
       const isHeld = activeHoldKeys?.has(key) ?? false;
-      drawHoldNote(ctx, x, holdTop, laneWidth, holdLength + noteHeight, laneColor, isHeld);
+      drawHoldNote(ctx, x, holdTop, laneWidth, holdLength + noteHeight, laneColor, isHeld, note.holdDuration);
     } else {
       drawTapNote(ctx, x, y, laneWidth, noteHeight, laneColor);
     }
@@ -95,49 +95,74 @@ function drawTapNote(
 function drawHoldNote(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number, color: string,
-  isHeld = false
+  isHeld = false, holdDurationSec = 1.0
 ) {
   const padding = 4;
   const nx = x + padding;
   const nw = w - padding * 2;
+  const t = performance.now() / 1000;
+
+  // Tier classification
+  const tier = holdDurationSec >= 4 ? 3 : holdDurationSec >= 1.8 ? 2 : 1;
+  const isLong = tier >= 3;
+  const isMed = tier === 2;
 
   if (isHeld) {
-    // Active hold — bright fill pulsing, full glow
-    ctx.fillStyle = `${color}88`;
+    ctx.fillStyle = isLong ? `${color}aa` : `${color}88`;
     ctx.shadowColor = color;
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = isLong ? 30 : 20;
   } else {
-    // Inactive hold — dim body
-    ctx.fillStyle = `${color}33`;
+    ctx.fillStyle = isLong ? `${color}44` : `${color}33`;
     ctx.shadowBlur = 0;
   }
   ctx.fillRect(nx, y, nw, h);
 
   // Hold borders
   ctx.strokeStyle = isHeld ? `${color}` : `${color}66`;
-  ctx.lineWidth = isHeld ? 2 : 1;
+  ctx.lineWidth = isHeld && isLong ? 3 : isHeld ? 2 : 1;
   ctx.strokeRect(nx, y, nw, h);
   ctx.shadowBlur = 0;
 
-  // Hold head (bottom) — always bright
+  // Hold head (bottom) — brighter for longer holds
   ctx.fillStyle = color;
   ctx.shadowColor = color;
-  ctx.shadowBlur = isHeld ? 20 : 10;
-  ctx.fillRect(nx, y + h - 8, nw, 8);
+  ctx.shadowBlur = isHeld ? (isLong ? 30 : 20) : 10;
+  const headH = isLong ? 12 : 8;
+  ctx.fillRect(nx, y + h - headH, nw, headH);
   ctx.shadowBlur = 0;
 
   // Side glow lines for active holds
   if (isHeld) {
-    ctx.strokeStyle = `${color}44`;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(nx, y);
-    ctx.lineTo(nx, y + h);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(nx + nw, y);
-    ctx.lineTo(nx + nw, y + h);
-    ctx.stroke();
+    ctx.strokeStyle = isLong ? `${color}66` : `${color}44`;
+    ctx.lineWidth = isLong ? 4 : 3;
+    ctx.beginPath(); ctx.moveTo(nx, y); ctx.lineTo(nx, y + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(nx + nw, y); ctx.lineTo(nx + nw, y + h); ctx.stroke();
+  }
+
+  // ── Tier-specific effects ──
+  if (isMed || isLong) {
+    // Sparkle dots along the hold body (simulating guitar string friction)
+    const sparkCount = isLong ? 12 : 5;
+    for (let i = 0; i < sparkCount; i++) {
+      const sy = y + (h * (i + 0.5)) / sparkCount;
+      const sx = nx + nw / 2 + Math.sin(t * 15 + i * 2.5) * (nw * 0.3);
+      const alpha = 0.4 + Math.sin(t * 10 + i * 3) * 0.3;
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 6;
+      ctx.fillRect(sx - 1.5, sy - 1.5, 3, 3);
+      ctx.shadowBlur = 0;
+    }
+    // Extra: pulsing center glow line
+    if (isLong) {
+      const glowAlpha = 0.2 + Math.sin(t * 8) * 0.1;
+      ctx.strokeStyle = `${color}${Math.round(glowAlpha * 255).toString(16).padStart(2,'0')}`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(nx + nw/2, y);
+      ctx.lineTo(nx + nw/2, y + h);
+      ctx.stroke();
+    }
   }
 }
 
