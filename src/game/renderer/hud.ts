@@ -73,6 +73,7 @@ export function updateJudgmentPopups(dt: number) {
 export function renderJudgmentPopups(ctx: CanvasRenderingContext2D, canvasWidth: number, _canvasHeight: number) {
   const combo = getCombo();
   const celebration = combo >= 20;
+  const superCelebration = combo >= 50;
   const { lanes } = { lanes: 5 };
   const laneWidth = 80;
   const totalWidth = lanes * laneWidth;
@@ -83,16 +84,22 @@ export function renderJudgmentPopups(ctx: CanvasRenderingContext2D, canvasWidth:
     ctx.globalAlpha = alpha;
     if (celebration && p.judgment !== "miss" && p.judgment !== "bad") {
       const t = performance.now() / 1000;
-      const hue = (t * 100 + p.lane * 40) % 360;
-      ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
-      ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
-      ctx.shadowBlur = 18 * alpha;
+      const hue = (t * (superCelebration ? 150 : 100) + p.lane * 40) % 360;
+      ctx.fillStyle = `hsl(${hue}, 100%, ${superCelebration ? 70 : 60}%)`;
+      ctx.shadowColor = `hsl(${hue}, 100%, ${superCelebration ? 70 : 60}%)`;
+      ctx.shadowBlur = (superCelebration ? 28 : 18) * alpha;
+      // Extra sparkle outline for 50+
+      if (superCelebration) {
+        ctx.strokeStyle = `hsl(${(hue + 180) % 360}, 100%, 80%)`;
+        ctx.lineWidth = 2 * alpha;
+        ctx.strokeText(JUDGMENT_TEXT[p.judgment], x, p.y);
+      }
     } else {
       ctx.fillStyle = JUDGMENT_COLORS[p.judgment];
       ctx.shadowColor = JUDGMENT_COLORS[p.judgment];
       ctx.shadowBlur = 12 * alpha;
     }
-    ctx.font = `bold ${18 + (1 - alpha) * 8}px monospace`;
+    ctx.font = `bold ${(superCelebration ? 22 : 18) + (1 - alpha) * 8}px monospace`;
     ctx.textAlign = "center";
     ctx.fillText(JUDGMENT_TEXT[p.judgment], x, p.y);
   }
@@ -141,29 +148,44 @@ export function renderHUD(ctx: CanvasRenderingContext2D, canvasWidth: number, ca
 
   // Combo — center (large, pulsing)
   const celebration = combo >= 20;
+  const superCelebration = combo >= 50;
   if (combo >= 5) {
-    const scale = 1 + comboTimer * 0.3;
+    const scale = 1 + comboTimer * (superCelebration ? 0.5 : 0.3);
     ctx.save();
     ctx.translate(canvasWidth / 2, canvasHeight * 0.78);
     ctx.scale(scale, scale);
-    const alpha = (celebration ? 0.8 : 0.5) + comboTimer * (celebration ? 0.2 : 0.5);
+    const baseAlpha = superCelebration ? 0.95 : celebration ? 0.8 : 0.5;
+    const alpha = baseAlpha + comboTimer * (superCelebration ? 0.05 : celebration ? 0.2 : 0.5);
     if (celebration) {
       const t = performance.now() / 1000;
-      const hue = (t * 80 + combo * 3) % 360;
+      const hue = (t * (superCelebration ? 120 : 80) + combo * 3) % 360;
       ctx.fillStyle = `hsla(${hue}, 100%, 65%, ${alpha})`;
-      ctx.shadowColor = `hsla(${hue}, 100%, 60%, 0.6)`;
-      ctx.shadowBlur = 20;
+      ctx.shadowColor = `hsla(${hue}, 100%, 60%, ${superCelebration ? 0.9 : 0.6})`;
+      ctx.shadowBlur = superCelebration ? 30 : 20;
+      // Extra outer glow for 50+
+      if (superCelebration) {
+        ctx.font = "bold 52px monospace";
+        ctx.fillText(`${combo}`, 0, 0);
+        // Sparkle ring
+        ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 100%, 70%, 0.3)`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 50 + Math.sin(t * 3) * 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      } else {
+        ctx.font = "bold 42px monospace";
+        ctx.fillText(`${combo}`, 0, 0);
+      }
     } else {
       ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-      ctx.shadowBlur = 0;
+      ctx.font = "bold 42px monospace";
+      ctx.fillText(`${combo}`, 0, 0);
     }
-    ctx.font = "bold 42px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(`${combo}`, 0, 0);
-    ctx.font = celebration ? "bold 13px monospace" : "12px monospace";
-    ctx.fillStyle = celebration ? "#ffffff88" : "#ffffff44";
-    ctx.fillText(celebration ? "COMBO 🔥" : "COMBO", 0, 18);
     ctx.shadowBlur = 0;
+    ctx.font = superCelebration ? "bold 14px monospace" : celebration ? "bold 13px monospace" : "12px monospace";
+    ctx.fillStyle = superCelebration ? "#FFD700" : celebration ? "#ffffff88" : "#ffffff44";
+    ctx.fillText(superCelebration ? "COMBO ⚡🔥" : celebration ? "COMBO 🔥" : "COMBO", 0, superCelebration ? 22 : 18);
     ctx.restore();
   }
 }

@@ -287,9 +287,9 @@ export function GameScreen() {
 
       // Combo celebration: enhanced glow when combo > 20
       const combo = getCombo();
-      const celebrationMode = combo >= 20;
-      const boostedBass = celebrationMode ? Math.min(1, bass + 0.15) : bass;
-      renderHighway(ctx, boostedBass, lastLanePressed, celebrationMode);
+      const celebrationLevel = combo >= 50 ? 2 : combo >= 20 ? 1 : 0;
+      const boostedBass = celebrationLevel > 0 ? Math.min(1, bass + (celebrationLevel === 2 ? 0.25 : 0.15)) : bass;
+      renderHighway(ctx, boostedBass, lastLanePressed, celebrationLevel >= 2);
 
       // ── Countdown display ──
       if (countdownPhase >= 1 && countdownPhase <= 3) {
