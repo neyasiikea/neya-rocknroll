@@ -79,23 +79,66 @@ export const chart: Chart = {
 
 ---
 
-## 三、判定系统
+## 三、判定系统（核心技术参考）
 
-| 难度 | Perfect 窗口 | Good 窗口 |
-|------|-------------|----------|
-| Easy | ±60ms | ±120ms |
-| Normal | ±50ms | ±100ms |
-| Hard | ±43ms | ±77ms |
+### 3.1 判定窗口
 
-音符到判定线时，比较当前时间与音符 time 的差值：
+| 难度 | Perfect | Good | BAD 阈值 (3×Good) |
+|------|------|------|------|
+| Easy | ±100ms | ±200ms | 600ms |
+| Normal | ±70ms | ±140ms | 420ms |
+| Hard | ±50ms | ±100ms | 300ms |
 
-| 判定 | 条件 | 分数倍率 |
-|------|------|------|
-| Perfect | 误差在 Perfect 窗口内 | ×1.0 |
-| Good | 误差在 Good 窗口内 | ×0.7 |
-| Miss | 超窗口或没按 | ×0 |
+### 3.2 命中判定流程（`judgeHit` + `GameScreen.update()`）
 
-**连击**：连续 Perfect/Good 累计 combo，Miss 归零。长按期间每秒判定一次，松开时最后一拍也判定。要求轨道按键持续按住。
+每帧对每个按下(`laneJustPressed`)的轨道执行：
+
+```
+Step 1: getJudgableNotes(gameTime, window.good)
+        → 筛选 ±good 窗口内未判定音符
+
+Step 2: 在该轨道的候选音符中找距离 gameTime 最近的 (bestMatch)
+
+Step 3: findNoteIndex(bestMatch.time, bestMatch.lane, tolerance)
+        → 反查 runtimeNotes 索引，确认音符未被其他轨处理
+
+Step 4: judgeHit(bestMatch.time, gameTime, window)
+        → diffMs = |gameTime - noteTime| × 1000
+        → diffMs ≤ perfect → "perfect"
+        → diffMs ≤ good    → "good"
+        → 否则 → null（不会走到，Step1 已过滤）
+```
+
+| 判定 | 条件 | 分数 | 特效 |
+|------|------|------|------|
+| **Perfect** | diffMs ≤ perfect 窗口 | 100 × 连击倍率 | 绿色弹出 + 大粒子 |
+| **Good** | diffMs ≤ good 窗口 | 70 × 连击倍率 | 黄色弹出 + 小粒子 |
+| **Miss（漏判）** | 音符过期未按 | 0，连击归零 | 红色弹出 + 闷音 SFX |
+
+### 3.3 BAD 误触判定（单向，仅前向）
+
+```
+按键按下 → 该轨道在 good 窗口内无匹配音符
+  → 查该轨道前方（n.time ≥ gameTime）最近音符距离
+  → closestFutureDist > 3×good 窗口 或 无未来音符
+  → BAD
+```
+
+| 判定 | 条件 | 惩罚 | 特效 |
+|------|------|------|------|
+| **BAD** | 按键时该轨前方最近音符 > 3×good | **-100 分** | 深红 BAD 弹出 + 闷音 bass pluck + 震动 0.5/80ms |
+
+**关键约束**：
+- BAD 仅对**该帧未命中任何音符的轨道**生效（`hitLanes` Set 守卫）
+- BAD **不检查已过期的音符**（`n.time >= gameTime` 单向过滤）
+- React StrictMode 防护：`updateGuard` 计数器，偶数次 `update()` 调用直接跳过
+
+### 3.4 连击与长按
+
+- 连续 Perfect/Good 累计 combo，Miss/BAD 不中断 combo（仅 Miss 归零）
+- 长按：首次命中加入 `activeHolds` 追踪，按住期间不标记 judged
+- 长按释放：达到 holdEndTime 判 Perfect，提前释放判 Miss
+- 长按每 250ms 给一次判定 tick
 
 ---
 
